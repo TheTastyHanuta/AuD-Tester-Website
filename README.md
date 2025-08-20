@@ -160,6 +160,190 @@ When reporting issues, please include:
 3. Update documentation if needed
 4. Submit a pull request with a clear description of changes
 
+## Deployment
+
+### Hosting on Oracle Cloud VM with Cloudflare Tunnel
+
+To host this application on an Oracle Cloud VM using Cloudflare Tunnel, follow these steps:
+
+#### Prerequisites
+
+1. **Oracle Cloud Account**: Create a free Oracle Cloud account
+2. **Cloudflare Account**: Sign up for a free Cloudflare account
+3. **Domain**: Have a domain managed by Cloudflare (free tier available)
+
+#### Oracle VM Setup
+
+1. **Create VM Instance**:
+   - Log into Oracle Cloud Console
+   - Create a new Compute Instance (VM.Standard.E2.1.Micro for free tier)
+   - Choose Ubuntu 20.04 or 22.04 LTS
+   - Configure SSH access with your public key
+   - Note the public IP address
+
+2. **Configure Firewall**:
+   - In Oracle Cloud Console, go to Virtual Cloud Networks
+   - Edit the security list for your subnet
+   - Add ingress rule: Source 0.0.0.0/0, Destination Port 22 (SSH)
+   - Add ingress rule: Source 0.0.0.0/0, Destination Port 3000 (Application)
+
+3. **Connect to VM**:
+   ```bash
+   ssh -i your-private-key.pem ubuntu@your-vm-ip
+   ```
+
+#### Install Dependencies on VM
+
+1. **Update System**:
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   ```
+
+2. **Install Node.js**:
+   ```bash
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   ```
+
+3. **Install Java**:
+   ```bash
+   sudo apt install default-jdk -y
+   ```
+
+4. **Install Git**:
+   ```bash
+   sudo apt install git -y
+   ```
+
+#### Deploy Application
+
+1. **Clone Repository**:
+   ```bash
+   git clone <your-repository-url>
+   cd AuD-Tester-Website
+   ```
+
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Test Application**:
+   ```bash
+   node server.js
+   ```
+
+4. **Setup Process Manager** (PM2 for production):
+   ```bash
+   sudo npm install -g pm2
+   pm2 start server.js --name "aud-tester"
+   pm2 startup
+   pm2 save
+   ```
+
+#### Cloudflare Tunnel Setup
+
+1. **Install Cloudflared**:
+   ```bash
+   wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+   sudo dpkg -i cloudflared-linux-amd64.deb
+   ```
+
+2. **Authenticate with Cloudflare**:
+   ```bash
+   cloudflared tunnel login
+   ```
+
+3. **Create Tunnel**:
+   ```bash
+   cloudflared tunnel create aud-tester
+   ```
+
+4. **Configure Tunnel**:
+   Create `~/.cloudflared/config.yml`:
+   ```yaml
+   tunnel: <tunnel-id>
+   credentials-file: /home/ubuntu/.cloudflared/<tunnel-id>.json
+   
+   ingress:
+     - hostname: aud-tester.yourdomain.com
+       service: http://localhost:3000
+     - service: http_status:404
+   ```
+
+5. **Create DNS Record**:
+   ```bash
+   cloudflared tunnel route dns aud-tester aud-tester.yourdomain.com
+   ```
+
+6. **Run Tunnel**:
+   ```bash
+   cloudflared tunnel run aud-tester
+   ```
+
+7. **Setup Tunnel as Service**:
+   ```bash
+   sudo cloudflared service install
+   sudo systemctl enable cloudflared
+   sudo systemctl start cloudflared
+   ```
+
+#### Security Considerations
+
+1. **Firewall Configuration**:
+   ```bash
+   sudo ufw enable
+   sudo ufw allow ssh
+   sudo ufw allow 3000/tcp
+   ```
+
+2. **Update Application Configuration**:
+   - Change default ports if needed
+   - Configure environment variables for production
+   - Set up SSL/TLS (handled by Cloudflare)
+
+3. **File Upload Security**:
+   - The application already includes file type validation
+   - Consider implementing file size limits
+   - Regular cleanup of temporary directories
+
+#### Monitoring and Maintenance
+
+1. **Check Application Status**:
+   ```bash
+   pm2 status
+   pm2 logs aud-tester
+   ```
+
+2. **Check Tunnel Status**:
+   ```bash
+   sudo systemctl status cloudflared
+   cloudflared tunnel info aud-tester
+   ```
+
+3. **Update Application**:
+   ```bash
+   git pull origin main
+   npm install
+   pm2 restart aud-tester
+   ```
+
+#### Benefits of This Setup
+
+- **Free Hosting**: Oracle Cloud free tier provides sufficient resources
+- **Global CDN**: Cloudflare provides worldwide content distribution
+- **DDoS Protection**: Built-in protection from Cloudflare
+- **SSL/TLS**: Automatic HTTPS encryption
+- **Zero Network Configuration**: No need to open ports or configure NAT
+- **High Availability**: Cloudflare's network ensures uptime
+
+#### Troubleshooting
+
+- **Connection Issues**: Check VM firewall and Oracle Cloud security lists
+- **Tunnel Not Working**: Verify DNS configuration and tunnel status
+- **Application Errors**: Check PM2 logs and server.js configuration
+- **Java Compilation Issues**: Ensure proper Java installation and PATH configuration
+
 ## License
 
 This project is open source and available under standard academic use terms.

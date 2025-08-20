@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs-extra');
 const { exec } = require('child_process');
 const cors = require('cors');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const exercises = require('./exercises.json');
 
