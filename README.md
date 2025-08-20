@@ -169,22 +169,26 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 #### Install Dependencies
 
 1. **Update System**:
+
    ```bash
    sudo apt update && sudo apt upgrade -y
    ```
 
 2. **Install Node.js**:
+
    ```bash
    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
    sudo apt-get install -y nodejs
    ```
 
 3. **Install Java**:
+
    ```bash
    sudo apt install default-jdk -y
    ```
 
 4. **Install Git**:
+
    ```bash
    sudo apt install git -y
    ```
@@ -192,22 +196,26 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 #### Deploy Application
 
 1. **Clone Repository**:
+
    ```bash
    git clone https://github.com/TheTastyHanuta/AuD-Tester-Website
    cd AuD-Tester-Website
    ```
 
 2. **Install Dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Test Application**:
+
    ```bash
    node server.js
    ```
 
 4. **Setup Process Manager** (PM2 for production):
+
    ```bash
    sudo npm install -g pm2
    pm2 start server.js --name "aud-tester"
@@ -218,12 +226,14 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 #### Monitoring and Maintenance
 
 1. **Check Application Status**:
+
    ```bash
    pm2 status
    pm2 logs aud-tester
    ```
 
 2. **Update Application**:
+
    ```bash
    git pull origin main
    npm install
