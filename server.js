@@ -53,7 +53,6 @@ app.post('/submit', (req, res) => {
                 error: 'File upload error',
                 status: '❌',
                 message: `Upload failed: ${err.message}`,
-                points: 0
             });
         }
         
@@ -83,7 +82,6 @@ app.post('/submit', (req, res) => {
                         status: '❌',
                         message: 'Invalid exercise selected',
                         details: 'The selected exercise was not found.',
-                        points: 0
                     });
                 }
 
@@ -121,7 +119,6 @@ app.post('/submit', (req, res) => {
                         status: '💀',
                         message: 'Compilation failed',
                         details: compilationResult.error,
-                        points: 0
                     });
                 }
 
@@ -135,7 +132,8 @@ app.post('/submit', (req, res) => {
                             status: testResult.status,
                             message: testResult.message,
                             details: testResult.details,
-                            points: testResult.points
+                            deadline: exerciseConfig.deadline,
+                            deadlinePassed: new Date() > new Date(exerciseConfig.deadline)
                         });
                     }
                     
@@ -145,7 +143,6 @@ app.post('/submit', (req, res) => {
                         status: testResult.status,
                         message: testResult.message,
                         details: testResult.details,
-                        points: testResult.points,
                         deadline: exerciseConfig.deadline,
                         deadlinePassed: new Date() > new Date(exerciseConfig.deadline)
                     });
@@ -157,7 +154,6 @@ app.post('/submit', (req, res) => {
                     status: '✅',
                     message: 'Compilation successful',
                     details: 'Your code compiled without errors!',
-                    points: exerciseConfig.points || 10,
                     deadline: exerciseConfig.deadline,
                     deadlinePassed: new Date() > new Date(exerciseConfig.deadline)
                 });
@@ -295,7 +291,6 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
                 status: '✅',
                 message: 'Compilation successful',
                 details: 'Your code compiled without errors!',
-                points: exerciseConfig.points
             };
         }
         
@@ -307,7 +302,6 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
                 status: '✅',
                 message: 'Compilation successful',
                 details: 'Your code compiled without errors!',
-                points: exerciseConfig.points
             };
         }
         
@@ -320,10 +314,9 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         if (testCompilationResult.error) {
             return {
                 success: false,
-                status: '❌',
+                status: '💀',
                 message: 'Test compilation failed',
                 details: `Your code compiled, but the tests failed to compile. This usually means:\n- Missing required methods\n- Wrong method signatures\n- Wrong class/method names\n\nTest compilation error:\n${testCompilationResult.stderr}`,
-                points: 0
             };
         }
         
@@ -336,26 +329,21 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
             timeout: 30000 // 30 second timeout
         });
         
-        // Parse test results
-        const points = parseTestOutput(testResult.stdout, testResult.stderr, exerciseConfig.points);
-        
         if (testResult.error && testResult.error.code !== 'timeout') {
             // Tests ran but some failed
             return {
-                success: points > 0,
-                status: points > 0 ? '⚠️' : '❌',
-                message: points > 0 ? 'Some tests passed' : 'Tests failed',
+                success: false,
+                status: '💀',
+                message: 'Tests failed',
                 details: `Test output:\n${testResult.stdout}\n\nErrors:\n${testResult.stderr}`,
-                points: points
             };
         }
         
         return {
             success: true,
-            status: points === exerciseConfig.points ? '✅' : '⚠️',
-            message: points === exerciseConfig.points ? 'All tests passed!' : 'Some tests passed',
-            details: points === exerciseConfig.points ? 'Your code compiled and passed all tests successfully!' : `Test output:\n${testResult.stdout}`,
-            points: points
+            status: '✅',
+            message: 'All tests passed!',
+            details: 'Your code compiled and passed all tests successfully!',
         };
         
     } catch (error) {
@@ -365,37 +353,8 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
             status: '⚠️',
             message: 'Test execution error',
             details: `An error occurred while running tests: ${error.message}`,
-            points: 0
         };
     }
-}
-
-function parseTestOutput(stdout, stderr, maxPoints) {
-    // Parse JUnit output
-    if (stdout.includes('OK') && !stdout.includes('FAILURES!!!')) {
-        return maxPoints;
-    }
-    
-    // Look for JUnit test results pattern
-    const testPattern = /Tests run: (\d+),\s*Failures: (\d+)/;
-    const match = stdout.match(testPattern);
-    
-    if (match) {
-        const total = parseInt(match[1]);
-        const failures = parseInt(match[2]);
-        const passed = total - failures;
-        
-        if (total > 0) {
-            return Math.floor((passed / total) * maxPoints);
-        }
-    }
-    
-    // If no clear pattern found, check for basic success indicators
-    if (stdout.includes('OK') || (stdout.includes('Test') && !stdout.includes('FAIL'))) {
-        return maxPoints;
-    }
-    
-    return 0;
 }
 
 function execPromise(command, options) {
