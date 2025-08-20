@@ -83,7 +83,6 @@ app.post('/submit', (req, res) => {
                         status: '⚠️',
                         message: 'Encoding Error: Non-ASCII characters detected',
                         details: encodingCheck.details,
-                        points: 0
                     });
                 }
 

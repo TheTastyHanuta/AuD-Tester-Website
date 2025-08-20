@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 status: '⚠️',
                 message: 'Network Error',
                 details: 'Failed to connect to the server. Please try again.',
-                points: 0
             });
         } finally {
             setLoadingState(false);
@@ -178,7 +177,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="result-message">${escapeHtml(result.message || 'Unknown result')}</div>
                 ${deadlineInfo}
                 ${result.details ? `<div class="result-details">${escapeHtml(result.details)}</div>` : ''}
-                <div class="result-points">Points: ${result.points || 0}</div>
             </div>
         `;
 
