@@ -75,6 +75,18 @@ app.post('/submit', (req, res) => {
                     await fs.copy(file.path, tempFilePath);
                 }
 
+                // Check for non-ASCII characters in all files
+                const encodingCheck = await validateUSASCIIEncoding(tempDir, uploadedFiles.map(f => f.filename));
+                if (!encodingCheck.valid) {
+                    return res.json({
+                        success: false,
+                        status: '⚠️',
+                        message: 'Encoding Error: Non-ASCII characters detected',
+                        details: encodingCheck.details,
+                        points: 0
+                    });
+                }
+
                 const exerciseConfig = getExerciseConfig(exercise);
                 if (!exerciseConfig) {
                     return res.json({
@@ -229,7 +241,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig) {
                 console.log('Error handling JAR files:', jarError.message);
             }
             
-            const command = `javac -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
+            const command = `javac -source 8 -target 8 -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
             console.log(`Compilation command: ${command}`);
             
             exec(command, { cwd: workingDir }, (error, stdout, stderr) => {
@@ -306,7 +318,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         }
         
         // Compile test files
-        const compileTestCommand = `javac -cp ${classpath} "${testClassName}.java"`;
+        const compileTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${testClassName}.java"`;
         console.log(`Test compilation command: ${compileTestCommand}`);
         
         const testCompilationResult = await execPromise(compileTestCommand, { cwd: workingDir });
@@ -397,14 +409,142 @@ async function cleanupTempDir(tempDir) {
     }
 }
 
+async function validateUSASCIIEncoding(workingDir, fileNames) {
+    const nonASCIIFiles = [];
+    const problematicChars = [];
+    
+    try {
+        for (const fileName of fileNames) {
+            const filePath = path.join(workingDir, fileName);
+            const content = await fs.readFile(filePath, 'utf8');
+            
+            // Check each character in the file
+            let lineNumber = 1;
+            let columnNumber = 1;
+            const fileProblems = [];
+            
+            for (let i = 0; i < content.length; i++) {
+                const char = content[i];
+                const charCode = char.charCodeAt(0);
+                
+                // US-ASCII is 0-127, anything above is non-ASCII
+                if (charCode > 127) {
+                    fileProblems.push({
+                        char: char,
+                        charCode: charCode,
+                        line: lineNumber,
+                        column: columnNumber,
+                        hexCode: '0x' + charCode.toString(16).toUpperCase()
+                    });
+                }
+                
+                // Track line and column numbers
+                if (char === '\n') {
+                    lineNumber++;
+                    columnNumber = 1;
+                } else {
+                    columnNumber++;
+                }
+            }
+            
+            if (fileProblems.length > 0) {
+                nonASCIIFiles.push({
+                    fileName: fileName,
+                    problems: fileProblems
+                });
+            }
+        }
+        
+        if (nonASCIIFiles.length === 0) {
+            return { valid: true };
+        }
+        
+        // Build detailed error message
+        let details = 'Your Java files contain non-ASCII characters. Please use only US-ASCII encoding.\n\n';
+        details += 'You need to set your project and file encoding to US-ASCII. Otherwise the code will not compile.\n';
+        details += 'Please refer to our intructions from the beginning of the semester.\n\n';
+        details += 'Common non-ASCII characters to avoid:\n';
+        details += '• German umlauts: ä, ö, ü, Ä, Ö, Ü, ß\n';
+        details += '• Accented characters: é, è, à, ç, etc.\n';
+        details += '• Smart (special) quotes: " " \' \'\n';
+        details += '• Em/en dashes: — –\n\n';
+        details += 'Problems found:\n\n';
+        
+        for (const file of nonASCIIFiles) {
+            details += `File: ${file.fileName}\n`;
+            
+            // Group similar characters to avoid spam
+            const charCounts = {};
+            for (const problem of file.problems) {
+                const key = `${problem.char} (${problem.hexCode})`;
+                if (!charCounts[key]) {
+                    charCounts[key] = [];
+                }
+                charCounts[key].push(`Line ${problem.line}, Column ${problem.column}`);
+            }
+            
+            for (const [charInfo, locations] of Object.entries(charCounts)) {
+                details += `  • Character ${charInfo} found at: ${locations.slice(0, 5).join(', ')}`;
+                if (locations.length > 5) {
+                    details += ` and ${locations.length - 5} more locations`;
+                }
+                details += '\n';
+            }
+            details += '\n';
+        }
+        
+        details += 'Solutions:\n';
+        details += '• Replace ä, ö, ü with ae, oe, ue\n';
+        details += '• Replace ß with ss\n';
+        details += '• Use regular quotes: " instead of " "\n';
+        details += '• Use regular apostrophes: \\\' instead of \\\'\n';
+        details += '• Use regular hyphens: - instead of — or –\n';
+        details += '• Avoid any characters with accents or special symbols in code\n';
+        
+        return {
+            valid: false,
+            details: details
+        };
+        
+    } catch (error) {
+        console.error('Error validating encoding:', error);
+        return {
+            valid: false,
+            details: `Error checking file encoding: ${error.message}`
+        };
+    }
+}
+
 function getExerciseConfig(exerciseId) {
     return exercises.find(ex => ex.id === exerciseId);
+}
+
+async function checkJavaVersion() {
+    return new Promise((resolve) => {
+        exec('java -version', (error, stdout, stderr) => {
+            const output = stderr || stdout;
+            const versionLine = output.split('\n')[0];
+            console.log('Java version:', versionLine);
+            
+            // Check if Java 8 is available
+            exec('javac -version', (error, stdout, stderr) => {
+                const javacOutput = stderr || stdout;
+                console.log('Java compiler version:', javacOutput.trim());
+                resolve();
+            });
+        });
+    });
 }
 
 app.get('/exercises', (req, res) => {
     res.json(exercises);
 });
 
-app.listen(PORT, () => {
-    console.log(`AuD Tester Website running on http://localhost:${PORT}`);
-});
+// Check Java version and start server
+(async () => {
+    await checkJavaVersion();
+    app.listen(PORT, () => {
+        console.log(`AuD Tester Website running on http://localhost:${PORT}`);
+        console.log('Enforcing Java 8 language level (-source 8 -target 8)');
+    });
+})();
