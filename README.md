@@ -13,7 +13,7 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 - **Temporary File Management**: Secure handling and cleanup of uploaded files
 - **Cross-platform Compatibility**: Works on Windows, macOS, and Linux
 
-## Requirements
+## Requirements for local development
 
 - Node.js (version 14 or higher)
 - Java Development Kit (JDK 8 or higher)
@@ -36,6 +36,12 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    ```
 
 ## Configuration
+
+### Environment Variables
+
+The application uses the following environment variables:
+
+- `PORT`: The port on which the server will run (default: 3500)
 
 ### Exercise Setup
 
@@ -73,22 +79,8 @@ Example exercise configuration:
 node server.js
 ```
 
-The application will start on `http://localhost:3000` by default.
+The application will start on `http://localhost:3500` by default.
 
-### For Students
-
-1. Open the website in your browser
-2. Select the appropriate exercise from the dropdown menu
-3. Upload your Java files using the file picker or drag and drop
-4. Click "Test Code" to submit your solution
-5. Review the compilation results and fix any errors if needed
-
-### For Instructors
-
-1. Add new exercises to `exercises.json`
-2. Place any required helper files or JAR dependencies in the `tests/` directory
-3. Restart the server to load new exercise configurations
-4. Students can immediately access the new exercises
 
 ## Project Structure
 
@@ -110,10 +102,11 @@ AuD Tester Website/
 
 1. **File Upload**: Students upload Java files through the web interface
 2. **Temporary Storage**: Files are stored in a temporary directory for processing
-3. **Compilation**: The system attempts to compile all uploaded files using javac
-4. **Classpath Management**: JAR dependencies are automatically included in the classpath
-5. **Result Generation**: Compilation results are returned with detailed feedback
-6. **Cleanup**: Temporary files are automatically cleaned up after processing
+3. **Classpath Management**: JAR dependencies are automatically included in the classpath
+4. **Compilation**: The system attempts to compile all uploaded files using javac
+5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results
+6. **Result Generation**: Compilation and test results are returned with detailed feedback
+7. **Cleanup**: Temporary files are automatically cleaned up after processing
 
 ## Development
 
