@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Temporary directories
+uploads/
+temp/
+
+# IDE files
+.vscode/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+
+# Logs
+logs
+*.log
