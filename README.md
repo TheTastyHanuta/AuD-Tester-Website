@@ -13,13 +13,15 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 - **Temporary File Management**: Secure handling and cleanup of uploaded files
 - **Cross-platform Compatibility**: Works on Windows, macOS, and Linux
 
-## Requirements for local development
+## Development
+
+### Requirements for local development
 
 - Node.js (version 14 or higher)
 - Java Development Kit (JDK 8 or higher)
 - npm or yarn package manager
 
-## Installation
+### Installation
 
 1. Clone or download the project to your local machine
 2. Navigate to the project directory
@@ -34,6 +36,23 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    ```bash
    javac -version
    ```
+
+### Code Formatting
+
+This project uses Prettier for consistent code formatting. Available commands:
+
+```bash
+# Format all files
+npm run format
+
+# Check if files are formatted correctly
+npm run format:check
+
+# Format specific file types
+npm run format:js    # JavaScript files
+npm run format:json  # JSON files
+npm run format:md    # Markdown files
+```
 
 ## Configuration
 
@@ -51,17 +70,19 @@ Exercises are configured in `exercises.json`. Each exercise has the following pr
 - `name`: Display name shown to users
 - `points`: Maximum points available
 - `hasTests`: Boolean indicating if tests exist (for future implementation)
+- `required_files`: List of required file names (for validation)
 - `deadline`: ISO date string for the submission deadline
 
 Example exercise configuration:
 
 ```json
 {
-    "id": "helloworld",
-    "name": "Hello World",
-    "points": 3,
-    "hasTests": false,
-    "deadline": "2025-09-01T23:59:59Z"
+  "id": "helloworld",
+  "name": "Hello World",
+  "points": 3,
+  "hasTests": false,
+  "required_files": ["HelloWorld.java"],
+  "deadline": "2025-09-01T23:59:59Z"
 }
 ```
 
@@ -80,7 +101,6 @@ node server.js
 ```
 
 The application will start on `http://localhost:3500` by default.
-
 
 ## Project Structure
 
@@ -108,32 +128,22 @@ AuD Tester Website/
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
 
-## Development
+## Contributing
 
 ### Adding New Features
 
-1. Fork the repository or create a feature branch
-2. Make your changes to the appropriate files
-3. Test thoroughly with various Java file combinations
-4. Update documentation as needed
-
-### Testing
-
-Test the application with various scenarios:
-
-- Single file uploads
-- Multiple file uploads
-- Files with compilation errors
-- Files requiring external JAR dependencies
-- Different exercise configurations
-
-## Contributing
-
 Contributions are welcome! Please follow these guidelines:
 
-1. **Code Style**: Maintain consistent formatting and naming conventions
+1. **Code Style**: Maintain consistent formatting and naming conventions (see [Code Formatting](#code-formatting))
 2. **Testing**: Test your changes with multiple file types and scenarios
 3. **Documentation**: Update relevant documentation for new features
+
+#### Submitting Changes
+
+1. Create a descriptive commit message
+2. Test your changes thoroughly
+3. Update documentation if needed
+4. Submit a pull request with a clear description of changes
 
 ### Reporting Issues
 
@@ -145,13 +155,6 @@ When reporting issues, please include:
 - Steps to reproduce the issue
 - Expected vs actual behavior
 - Any error messages or console output
-
-### Submitting Changes
-
-1. Create a descriptive commit message
-2. Test your changes thoroughly
-3. Update documentation if needed
-4. Submit a pull request with a clear description of changes
 
 ## Deployment
 

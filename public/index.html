@@ -1,59 +1,82 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AuD Code Tester</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <h1>🔬 Algorithms & Data Structures Code Tester</h1>
-            <p>Submit your Java code for automated testing and feedback</p>
-        </header>
+      <header>
+        <h1>AuD Code Tester</h1>
+        <p>
+          Reiche deinen Java-Code zur automatischen Überprüfung und Rückmeldung
+          ein. Diese Website ist nicht 100% verlässlich. Bitte achte auch bei
+          erfolgreicher Überprüfung auf die Einhaltung der Vorgaben im StudOn
+          Kurs. Vor allem falsche Dateinamen, Encodings und Methodennamen, sowie
+          Parameteranzahl, führen oft zu Compile Errors und damit 0 Punkten bei
+          der Abgabe über StudOn.
+        </p>
+      </header>
 
-        <main>
-            <div class="upload-section">
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label for="exercise">Select Exercise:</label>
-                        <select id="exercise" name="exercise" required>
-                            <option value="">Loading exercises...</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="javaFiles">Upload Java Files:</label>
-                        <div class="file-input-wrapper">
-                            <input type="file" id="javaFiles" name="javaFiles" accept=".java" multiple required>
-                            <div class="file-input-display">
-                                <span class="file-icon">📁</span>
-                                <span class="file-text">Choose Java files...</span>
-                            </div>
-                        </div>
-                        <small>Select one or more .java files. Hold Ctrl/Cmd to select multiple files.</small>
-                    </div>
-
-                    <button type="submit" id="submitBtn" class="submit-btn">
-                        <span class="btn-text">Test Code</span>
-                        <span class="btn-spinner" style="display: none;">⏳</span>
-                    </button>
-                </form>
+      <main>
+        <div class="upload-section">
+          <form id="uploadForm" enctype="multipart/form-data">
+            <div class="form-group">
+              <label for="exercise">Übung auswählen:</label>
+              <select id="exercise" name="exercise" required>
+                <option value="">Übungen werden geladen...</option>
+              </select>
             </div>
 
-            <div id="results" class="results-section" style="display: none;">
-                <h2>Test Results</h2>
-                <div id="resultContent"></div>
+            <div class="form-group">
+              <label for="javaFiles">Java-Dateien hochladen:</label>
+              <div class="file-input-wrapper">
+                <input
+                  type="file"
+                  id="javaFiles"
+                  name="javaFiles"
+                  accept=".java"
+                  multiple
+                  required
+                />
+                <div class="file-input-display">
+                  <span class="file-icon">📁</span>
+                  <span class="file-text">Java-Dateien auswählen...</span>
+                </div>
+              </div>
+              <small>
+                Wähle eine oder mehrere .java-Dateien aus. Halte Strg/Cmd
+                gedrückt, um mehrere Dateien auszuwählen.
+              </small>
             </div>
-        </main>
 
-        <footer>
-            <p>Built for Algorithms and Data Structures Course - by thetastyhanuta</p>
-        </footer>
+            <button type="submit" id="submitBtn" class="submit-btn">
+              <span class="btn-text">Code testen</span>
+              <span class="btn-spinner" style="display: none">⏳</span>
+            </button>
+          </form>
+        </div>
+
+        <div id="results" class="results-section" style="display: none">
+          <h2>Testergebnisse</h2>
+          <div id="resultContent"></div>
+        </div>
+      </main>
+
+      <footer>
+        <p>
+          Entwickelt für den Kurs Algorithmen und Datenstrukturen an der FAU
+          Erlangen-Nürnberg - by thetastyhanuta
+        </p>
+      </footer>
     </div>
 
     <script src="script.js"></script>
-</body>
+  </body>
 </html>
