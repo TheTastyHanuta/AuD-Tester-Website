@@ -13,13 +13,15 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 - **Temporary File Management**: Secure handling and cleanup of uploaded files
 - **Cross-platform Compatibility**: Works on Windows, macOS, and Linux
 
-## Requirements for local development
+## Development
+
+### Requirements for local development
 
 - Node.js (version 14 or higher)
 - Java Development Kit (JDK 8 or higher)
 - npm or yarn package manager
 
-## Installation
+### Installation
 
 1. Clone or download the project to your local machine
 2. Navigate to the project directory
@@ -34,8 +36,6 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    ```bash
    javac -version
    ```
-
-## Development
 
 ### Code Formatting
 
@@ -128,32 +128,22 @@ AuD Tester Website/
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
 
-## Development
+## Contributing
 
 ### Adding New Features
 
-1. Fork the repository or create a feature branch
-2. Make your changes to the appropriate files
-3. Test thoroughly with various Java file combinations
-4. Update documentation as needed
-
-### Testing
-
-Test the application with various scenarios:
-
-- Single file uploads
-- Multiple file uploads
-- Files with compilation errors
-- Files requiring external JAR dependencies
-- Different exercise configurations
-
-## Contributing
-
 Contributions are welcome! Please follow these guidelines:
 
-1. **Code Style**: Maintain consistent formatting and naming conventions
+1. **Code Style**: Maintain consistent formatting and naming conventions (see [Code Formatting](#code-formatting))
 2. **Testing**: Test your changes with multiple file types and scenarios
 3. **Documentation**: Update relevant documentation for new features
+
+#### Submitting Changes
+
+1. Create a descriptive commit message
+2. Test your changes thoroughly
+3. Update documentation if needed
+4. Submit a pull request with a clear description of changes
 
 ### Reporting Issues
 
@@ -165,13 +155,6 @@ When reporting issues, please include:
 - Steps to reproduce the issue
 - Expected vs actual behavior
 - Any error messages or console output
-
-### Submitting Changes
-
-1. Create a descriptive commit message
-2. Test your changes thoroughly
-3. Update documentation if needed
-4. Submit a pull request with a clear description of changes
 
 ## Deployment
 
