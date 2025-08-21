@@ -96,6 +96,18 @@ app.post('/submit', (req, res) => {
                     });
                 }
 
+                // Validate required files
+                const requiredFilesCheck = validateRequiredFiles(uploadedFiles.map(f => f.filename), exerciseConfig.required_files || []);
+                if (!requiredFilesCheck.valid) {
+                    return res.json({
+                        success: false,
+                        status: '❌',
+                        message: 'Missing Required Files',
+                        details: requiredFilesCheck.details,
+                        points: 0
+                    });
+                }
+
                 if (exerciseConfig.hasTests) {
                     const testDirMapping = {
                         'caesarchiffre': 'CaesarChiffreTests',
@@ -512,6 +524,49 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
             details: `Error checking file encoding: ${error.message}`
         };
     }
+}
+
+function validateRequiredFiles(uploadedFileNames, requiredFiles) {
+    if (!requiredFiles || requiredFiles.length === 0) {
+        return { valid: true };
+    }
+
+    const missingFiles = [];
+    const uploadedNames = uploadedFileNames.map(name => name.toLowerCase());
+
+    for (const requiredFile of requiredFiles) {
+        const requiredLower = requiredFile.toLowerCase();
+        if (!uploadedNames.includes(requiredLower)) {
+            missingFiles.push(requiredFile);
+        }
+    }
+
+    if (missingFiles.length === 0) {
+        return { valid: true };
+    }
+
+    let details = `This exercise requires specific files to be uploaded. You are missing:\n\n`;
+    missingFiles.forEach(file => {
+        details += `• ${file}\n`;
+    });
+    
+    details += `\nRequired files for this exercise:\n`;
+    requiredFiles.forEach(file => {
+        const uploaded = uploadedNames.includes(file.toLowerCase());
+        details += `${uploaded ? '✅' : '❌'} ${file}\n`;
+    });
+    
+    details += `\nUploaded files:\n`;
+    uploadedFileNames.forEach(file => {
+        details += `• ${file}\n`;
+    });
+    
+    details += `\nPlease make sure to upload all required files with the exact file names specified.`;
+
+    return {
+        valid: false,
+        details: details
+    };
 }
 
 function getExerciseConfig(exerciseId) {

@@ -51,6 +51,7 @@ Exercises are configured in `exercises.json`. Each exercise has the following pr
 - `name`: Display name shown to users
 - `points`: Maximum points available
 - `hasTests`: Boolean indicating if tests exist (for future implementation)
+- `required_files`: List of required file names (for validation)
 - `deadline`: ISO date string for the submission deadline
 
 Example exercise configuration:
@@ -61,6 +62,9 @@ Example exercise configuration:
     "name": "Hello World",
     "points": 3,
     "hasTests": false,
+      "required_files": [
+         "HelloWorld.java"
+      ],
     "deadline": "2025-09-01T23:59:59Z"
 }
 ```
