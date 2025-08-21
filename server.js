@@ -471,8 +471,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
       return {
         success: false,
         status: '⚠️',
-        message: 'No secret tests available',
-        details: 'No secret tests are configured for this exercise.',
+        message: 'No additional tests available',
+        details: 'No additional tests are configured for this exercise.',
       };
     }
 
@@ -485,8 +485,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
       return {
         success: false,
         status: '⚠️',
-        message: 'Secret test file not found',
-        details: `Secret test file ${secretTestClassName}.java not found.`,
+        message: 'Additional test file not found',
+        details: `Additional test file ${secretTestClassName}.java not found.`,
       };
     }
 
@@ -503,8 +503,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
       return {
         success: false,
         status: '💀',
-        message: 'Secret test compilation failed',
-        details: `Secret test compilation error:\n${secretTestCompilationResult.stderr}`,
+        message: 'Zusätzliche Testkompilierung fehlgeschlagen',
+        details: `Zusätzliche Testkompilierungsfehler:\n${secretTestCompilationResult.stderr}`,
       };
     }
 
@@ -522,24 +522,24 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
       return {
         success: false,
         status: '💀',
-        message: 'Secret tests failed',
-        details: `Secret test output:\n${secretTestResult.stdout}\n\nErrors:\n${secretTestResult.stderr}`,
+        message: 'Zusätzliche Tests sind fehlgeschlagen',
+        details: `Zusätzliche Testausgabe:\n${secretTestResult.stdout}\n\nFehler:\n${secretTestResult.stderr}`,
       };
     }
 
     return {
       success: true,
       status: '✅',
-      message: 'All secret tests passed!',
-      details: 'Your code passed all secret tests successfully!',
+      message: 'Alle zusätzlichen Tests bestanden!',
+      details: 'Dein Code hat alle zusätzlichen Tests erfolgreich bestanden!',
     };
   } catch (error) {
     console.error('Error running secret tests:', error);
     return {
       success: false,
       status: '⚠️',
-      message: 'Secret test execution error',
-      details: `An error occurred while running secret tests: ${error.message}`,
+      message: 'Additional test execution error',
+      details: `An error occurred while running additional tests: ${error.message}`,
     };
   }
 }
