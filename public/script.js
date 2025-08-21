@@ -171,15 +171,37 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
     }
-
-    // Build result HTML
-    const resultHtml = `
+        // Build result HTML
+        let secretTestsHtml = '';
+        if (result.deadlinePassed && result.secretTests) {
+            let secretResultType = 'error';
+            if (result.secretTests.success) {
+                secretResultType = 'success';
+            } else if (result.secretTests.status === '⚠️') {
+                secretResultType = 'warning';
+            }
+            
+            secretTestsHtml = `
+                <div class="result-card result-${secretResultType} secret-tests">
+                    <div class="result-status">${result.secretTests.status || '❓'}</div>
+                    <div class="result-message">
+                        <strong>Secret Tests:</strong> ${escapeHtml(result.secretTests.message || 'Unknown result')}
+                    </div>
+                    ${result.secretTests.details ? `<div class="result-details">${escapeHtml(result.secretTests.details)}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        const resultHtml = `
             <div class="result-card result-${resultType}">
                 <div class="result-status">${result.status || '❓'}</div>
-                <div class="result-message">${escapeHtml(result.message || 'Unknown result')}</div>
+                <div class="result-message">
+                    <strong>Public Tests:</strong> ${escapeHtml(result.message || 'Unknown result')}
+                </div>
                 ${deadlineInfo}
                 ${result.details ? `<div class="result-details">${escapeHtml(result.details)}</div>` : ''}
             </div>
+            ${secretTestsHtml}
         `;
 
     resultContent.innerHTML = resultHtml;
