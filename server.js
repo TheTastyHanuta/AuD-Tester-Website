@@ -433,6 +433,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
   }
 }
 
+// ToDo: Implement formatting with Helper files
 async function runSecretTests(workingDir, exercise, exerciseConfig) {
   try {
     console.log(`Running secret tests for exercise: ${exercise}`);
