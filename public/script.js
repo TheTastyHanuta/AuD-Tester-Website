@@ -20,14 +20,14 @@ document.addEventListener('DOMContentLoaded', function () {
       if (fileCount === 1) {
         fileText.textContent = this.files[0].name;
       } else {
-        fileText.textContent = `${fileCount} files selected`;
+        fileText.textContent = `${fileCount} Dateien ausgewählt`;
       }
       fileDisplay.classList.add('has-file');
 
       // Show file list
       updateFileList();
     } else {
-      fileText.textContent = 'Choose Java files...';
+      fileText.textContent = 'Java-Dateien auswählen...';
       fileDisplay.classList.remove('has-file');
     }
   });
@@ -43,8 +43,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const response = await fetch('/exercises');
       const exercises = await response.json();
 
-      exerciseSelect.innerHTML =
-        '<option value="">Select an exercise...</option>';
+      exerciseSelect.innerHTML = '<option value="">Übung auswählen...</option>';
       exercises.forEach(exercise => {
         const option = document.createElement('option');
         option.value = exercise.id;
@@ -60,26 +59,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         option.textContent = `${exercise.name} (${exercise.points} pts) - Deadline: ${deadlineStr}`;
-        option.title = `Exercise: ${exercise.name} - ${exercise.points} points`;
+        option.title = `Übung: ${exercise.name} - ${exercise.points} Punkte`;
 
         exerciseSelect.appendChild(option);
       });
     } catch (error) {
       console.error('Error loading exercises:', error);
       exerciseSelect.innerHTML =
-        '<option value="">Error loading exercises</option>';
+        '<option value="">Fehler beim Laden der Übungen</option>';
     }
   }
 
   async function submitCode() {
     // Validate inputs
     if (!exerciseSelect.value) {
-      alert('Please select an exercise');
+      alert('Bitte wähle eine Übung aus');
       return;
     }
 
     if (!fileInput.files.length) {
-      alert('Please select at least one Java file');
+      alert('Bitte wähle mindestens eine Java-Datei aus');
       return;
     }
 
@@ -88,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const fileName = fileInput.files[i].name;
       if (!fileName.toLowerCase().endsWith('.java')) {
         alert(
-          `Please select only valid Java files (.java extension). Invalid file: ${fileName}`
+          `Bitte wähle nur gültige Java-Dateien (.java-Erweiterung) aus. Ungültige Datei: ${fileName}`
         );
         return;
       }
@@ -262,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
       fileInput.files = dt.files;
       fileInput.dispatchEvent(new Event('change'));
     } else {
-      alert('Please drop only valid Java files (.java extension)');
+      alert('Bitte nur gültige Java-Dateien (.java-Erweiterung) ablegen');
     }
 
     this.style.borderColor = '#d1d5db';

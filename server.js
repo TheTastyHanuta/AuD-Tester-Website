@@ -37,7 +37,7 @@ const upload = multer({
     ) {
       cb(null, true);
     } else {
-      cb(new Error('Only Java files are allowed!'), false);
+      cb(new Error('Nur Java-Dateien sind erlaubt!'), false);
     }
   },
 });
@@ -61,7 +61,9 @@ app.post('/submit', (req, res) => {
 
     try {
       if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: 'No Java files uploaded' });
+        return res
+          .status(400)
+          .json({ error: 'Keine Java-Dateien hochgeladen' });
       }
 
       const { exercise } = req.body;
@@ -99,8 +101,8 @@ app.post('/submit', (req, res) => {
           return res.json({
             success: false,
             status: '❌',
-            message: 'Invalid exercise selected',
-            details: 'The selected exercise was not found.',
+            message: 'Ungültige Übung ausgewählt',
+            details: 'Die ausgewählte Übung wurde nicht gefunden.',
           });
         }
 
@@ -113,7 +115,7 @@ app.post('/submit', (req, res) => {
           return res.json({
             success: false,
             status: '❌',
-            message: 'Missing Required Files',
+            message: 'Fehlende erforderliche Dateien',
             details: requiredFilesCheck.details,
             points: 0,
           });
@@ -195,7 +197,8 @@ app.post('/submit', (req, res) => {
           success: true,
           status: '✅',
           message: 'Compilation successful',
-          details: 'Your code compiled without errors!',
+          details:
+            'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
           deadline: exerciseConfig.deadline,
           deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
         });
@@ -335,7 +338,8 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         success: true,
         status: '✅',
         message: 'Compilation successful',
-        details: 'Your code compiled without errors!',
+        details:
+          'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
       };
     }
 
@@ -346,7 +350,8 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         success: true,
         status: '✅',
         message: 'Compilation successful',
-        details: 'Your code compiled without errors!',
+        details:
+          'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
       };
     }
 
@@ -363,7 +368,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         success: false,
         status: '💀',
         message: 'Test compilation failed',
-        details: `Your code compiled, but the tests failed to compile. This usually means:\n- Missing required methods\n- Wrong method signatures\n- Wrong class/method names\n\nTest compilation error:\n${testCompilationResult.stderr}`,
+        details: `Dein Code wurde erfolgreich kompiliert, aber die Tests konnten nicht kompiliert werden. Dies bedeutet normalerweise:\n- Fehlende erforderliche Methoden\n- Falsche Methodensignaturen\n- Falsche Klassen-/Methodennamen\n\nTestkompilierungsfehler:\n${testCompilationResult.stderr}`,
       };
     }
 
@@ -390,7 +395,8 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
       success: true,
       status: '✅',
       message: 'All tests passed!',
-      details: 'Your code compiled and passed all tests successfully!',
+      details:
+        'Dein Code wurde erfolgreich kompiliert und hat alle Tests bestanden! Du kannst ihn so abgeben!',
     };
   } catch (error) {
     console.error('Error running tests:', error);
@@ -495,17 +501,16 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
 
     // Build detailed error message
     let details =
-      'Your Java files contain non-ASCII characters. Please use only US-ASCII encoding.\n\n';
+      'Deine Java-Dateien enthalten nicht-ASCII-Zeichen. Bitte verwende nur US-ASCII-Codierung.\n\n';
     details +=
-      'You need to set your project and file encoding to US-ASCII. Otherwise the code will not compile.\n';
-    details +=
-      'Please refer to our intructions from the beginning of the semester.\n\n';
-    details += 'Common non-ASCII characters to avoid:\n';
-    details += '• German umlauts: ä, ö, ü, Ä, Ö, Ü, ß\n';
-    details += '• Accented characters: é, è, à, ç, etc.\n';
-    details += '• Smart (special) quotes: " " \' \'\n';
-    details += '• Em/en dashes: — –\n\n';
-    details += 'Problems found:\n\n';
+      'Du musst die Projekt- und Dateicodierung auf US-ASCII einstellen. Andernfalls wird der Code nicht kompiliert.\n';
+    details += 'Schau dir unsere Anweisungen zu Beginn des Semesters an.\n\n';
+    details += 'Häufige nicht-ASCII-Zeichen, die vermieden werden sollten:\n';
+    details += '• Deutsche Umlaute: ä, ö, ü, Ä, Ö, Ü, ß\n';
+    details += '• Akzentuierte Zeichen: é, è, à, ç, etc.\n';
+    details += '• Besondere Anführungszeichen: " " \' \'\n';
+    details += '• Em/en-Dash: — –\n\n';
+    details += 'Gefundene Probleme:\n\n';
 
     for (const file of nonASCIIFiles) {
       details += `File: ${file.fileName}\n`;
@@ -530,14 +535,14 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
       details += '\n';
     }
 
-    details += 'Solutions:\n';
-    details += '• Replace ä, ö, ü with ae, oe, ue\n';
-    details += '• Replace ß with ss\n';
-    details += '• Use regular quotes: " instead of " "\n';
-    details += "• Use regular apostrophes: \\' instead of \\'\n";
-    details += '• Use regular hyphens: - instead of — or –\n';
+    details += 'Lösungen:\n';
+    details += '• Ersetze ä, ö, ü durch ae, oe, ue\n';
+    details += '• Ersetze ß durch ss\n';
+    details += '• Verwende normale Anführungszeichen: " statt " "\n';
+    details += "• Verwende normale Apostrophe: \\' statt \\'\n";
+    details += '• Verwende normale Bindestriche: - statt — oder –\n';
     details +=
-      '• Avoid any characters with accents or special symbols in code\n';
+      '• Vermeide alle Zeichen mit Akzenten oder Sonderzeichen im Code\n';
 
     return {
       valid: false,
@@ -571,23 +576,23 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
     return { valid: true };
   }
 
-  let details = `This exercise requires specific files to be uploaded. You are missing:\n\n`;
+  let details = `Diese Übung erfordert das Hochladen spezifischer Dateien. Dir fehlen:\n\n`;
   missingFiles.forEach(file => {
     details += `• ${file}\n`;
   });
 
-  details += `\nRequired files for this exercise:\n`;
+  details += `\nBenötigte Dateien für diese Übung:\n`;
   requiredFiles.forEach(file => {
     const uploaded = uploadedNames.includes(file.toLowerCase());
     details += `${uploaded ? '✅' : '❌'} ${file}\n`;
   });
 
-  details += `\nUploaded files:\n`;
+  details += `\nHochgeladene Dateien:\n`;
   uploadedFileNames.forEach(file => {
     details += `• ${file}\n`;
   });
 
-  details += `\nPlease make sure to upload all required files with the exact file names specified.`;
+  details += `\nBitte stelle sicher, dass du alle erforderlichen Dateien mit den genau angegebenen Dateinamen hochlädst.`;
 
   return {
     valid: false,
