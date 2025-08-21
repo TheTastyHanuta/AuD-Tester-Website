@@ -162,51 +162,59 @@ app.post('/submit', (req, res) => {
           });
         }
 
-         // If exercise has tests, try to compile and run public tests
-                if (exerciseConfig.hasTests) {
-                    const testResult = await runPublicTests(tempDir, exercise, exerciseConfig);
-                    
-                    if (!testResult.success) {
-                        return res.json({
-                            success: false,
-                            status: testResult.status,
-                            message: testResult.message,
-                            details: testResult.details,
-                            deadline: exerciseConfig.deadline,
-                            deadlinePassed: new Date() > new Date(exerciseConfig.deadline)
-                        });
-                    }
-                    
-                    // Check if deadline has passed and run secret tests if available
-                    const deadlinePassed = new Date() > new Date(exerciseConfig.deadline);
-                    let secretTestResult = null;
-                    
-                    if (deadlinePassed) {
-                        secretTestResult = await runSecretTests(tempDir, exercise, exerciseConfig);
-                    }
-                    
-                    // Prepare response with public test results and secret test results if deadline passed
-                    const response = {
-                        success: true,
-                        status: testResult.status,
-                        message: testResult.message,
-                        details: testResult.details,
-                        deadline: exerciseConfig.deadline,
-                        deadlinePassed: deadlinePassed
-                    };
-                    
-                    // Add secret test results if deadline has passed
-                    if (deadlinePassed && secretTestResult) {
-                        response.secretTests = {
-                            success: secretTestResult.success,
-                            status: secretTestResult.status,
-                            message: secretTestResult.message,
-                            details: secretTestResult.details
-                        };
-                    }
-                    
-                    return res.json(response);
-                }
+        // If exercise has tests, try to compile and run public tests
+        if (exerciseConfig.hasTests) {
+          const testResult = await runPublicTests(
+            tempDir,
+            exercise,
+            exerciseConfig
+          );
+
+          if (!testResult.success) {
+            return res.json({
+              success: false,
+              status: testResult.status,
+              message: testResult.message,
+              details: testResult.details,
+              deadline: exerciseConfig.deadline,
+              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+            });
+          }
+
+          // Check if deadline has passed and run secret tests if available
+          const deadlinePassed = new Date() > new Date(exerciseConfig.deadline);
+          let secretTestResult = null;
+
+          if (deadlinePassed) {
+            secretTestResult = await runSecretTests(
+              tempDir,
+              exercise,
+              exerciseConfig
+            );
+          }
+
+          // Prepare response with public test results and secret test results if deadline passed
+          const response = {
+            success: true,
+            status: testResult.status,
+            message: testResult.message,
+            details: testResult.details,
+            deadline: exerciseConfig.deadline,
+            deadlinePassed: deadlinePassed,
+          };
+
+          // Add secret test results if deadline has passed
+          if (deadlinePassed && secretTestResult) {
+            response.secretTests = {
+              success: secretTestResult.success,
+              status: secretTestResult.status,
+              message: secretTestResult.message,
+              details: secretTestResult.details,
+            };
+          }
+
+          return res.json(response);
+        }
 
         // If no tests, just return compilation success
         res.json({
@@ -426,106 +434,114 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
 }
 
 async function runSecretTests(workingDir, exercise, exerciseConfig) {
+  try {
+    console.log(`Running secret tests for exercise: ${exercise}`);
+
+    // Build classpath with JAR files
+    let classpath = '.';
+    const jarFiles = [];
+
     try {
-        console.log(`Running secret tests for exercise: ${exercise}`);
-        
-        // Build classpath with JAR files
-        let classpath = '.';
-        const jarFiles = [];
-        
-        try {
-            const files = await fs.readdir(workingDir);
-            const jars = files.filter(file => file.endsWith('.jar'));
-            if (jars.length > 0) {
-                jarFiles.push(...jars.map(jar => `"${jar}"`));
-                classpath = `.${path.delimiter}${jarFiles.join(path.delimiter)}`;
-            }
-        } catch (jarError) {
-            console.log('Error reading JAR files for secret tests:', jarError.message);
-        }
-        
-        // Determine secret test class name
-        const secretTestClassMapping = {
-            'caesarchiffre': 'CaesarChiffreSecretTest',
-            'signalplotter': 'SignalPlotterSecretTest',
-            'color': 'ColorSecretTest',
-            'snakegame': 'SnakeSecretTest',
-            'sortedset': 'SortedSetSecretTest',
-            'contactdb': 'ContactDatabaseSecretTest',
-            'binarytree': 'BinarySearchTreeSecretTest'
-        };
-        
-        const secretTestClassName = secretTestClassMapping[exercise];
-        if (!secretTestClassName) {
-            return {
-                success: false,
-                status: '⚠️',
-                message: 'No secret tests available',
-                details: 'No secret tests are configured for this exercise.',
-            };
-        }
-        
-        // Check if secret test file exists
-        const secretTestFilePath = path.join(workingDir, `${secretTestClassName}.java`);
-        if (!await fs.pathExists(secretTestFilePath)) {
-            return {
-                success: false,
-                status: '⚠️',
-                message: 'Secret test file not found',
-                details: `Secret test file ${secretTestClassName}.java not found.`,
-            };
-        }
-        
-        // Compile secret test files
-        const compileSecretTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${secretTestClassName}.java"`;
-        console.log(`Secret test compilation command: ${compileSecretTestCommand}`);
-        
-        const secretTestCompilationResult = await execPromise(compileSecretTestCommand, { cwd: workingDir });
-        
-        if (secretTestCompilationResult.error) {
-            return {
-                success: false,
-                status: '💀',
-                message: 'Secret test compilation failed',
-                details: `Secret test compilation error:\n${secretTestCompilationResult.stderr}`,
-            };
-        }
-        
-        // Run the secret tests
-        const runSecretTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${secretTestClassName}`;
-        console.log(`Secret test execution command: ${runSecretTestCommand}`);
-        
-        const secretTestResult = await execPromise(runSecretTestCommand, { 
-            cwd: workingDir,
-            timeout: 30000 // 30 second timeout
-        });
-        
-        if (secretTestResult.error && secretTestResult.error.code !== 'timeout') {
-            // Secret tests ran but some failed
-            return {
-                success: false,
-                status: '💀',
-                message: 'Secret tests failed',
-                details: `Secret test output:\n${secretTestResult.stdout}\n\nErrors:\n${secretTestResult.stderr}`,
-            };
-        }
-        
-        return {
-            success: true,
-            status: '✅',
-            message: 'All secret tests passed!',
-            details: 'Your code passed all secret tests successfully!',
-        };
-        
-    } catch (error) {
-        console.error('Error running secret tests:', error);
-        return {
-            success: false,
-            status: '⚠️',
-            message: 'Secret test execution error',
-            details: `An error occurred while running secret tests: ${error.message}`,
-        };
+      const files = await fs.readdir(workingDir);
+      const jars = files.filter(file => file.endsWith('.jar'));
+      if (jars.length > 0) {
+        jarFiles.push(...jars.map(jar => `"${jar}"`));
+        classpath = `.${path.delimiter}${jarFiles.join(path.delimiter)}`;
+      }
+    } catch (jarError) {
+      console.log(
+        'Error reading JAR files for secret tests:',
+        jarError.message
+      );
     }
+
+    // Determine secret test class name
+    const secretTestClassMapping = {
+      caesarchiffre: 'CaesarChiffreSecretTest',
+      signalplotter: 'SignalPlotterSecretTest',
+      color: 'ColorSecretTest',
+      snakegame: 'SnakeSecretTest',
+      sortedset: 'SortedSetSecretTest',
+      contactdb: 'ContactDatabaseSecretTest',
+      binarytree: 'BinarySearchTreeSecretTest',
+    };
+
+    const secretTestClassName = secretTestClassMapping[exercise];
+    if (!secretTestClassName) {
+      return {
+        success: false,
+        status: '⚠️',
+        message: 'No secret tests available',
+        details: 'No secret tests are configured for this exercise.',
+      };
+    }
+
+    // Check if secret test file exists
+    const secretTestFilePath = path.join(
+      workingDir,
+      `${secretTestClassName}.java`
+    );
+    if (!(await fs.pathExists(secretTestFilePath))) {
+      return {
+        success: false,
+        status: '⚠️',
+        message: 'Secret test file not found',
+        details: `Secret test file ${secretTestClassName}.java not found.`,
+      };
+    }
+
+    // Compile secret test files
+    const compileSecretTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${secretTestClassName}.java"`;
+    console.log(`Secret test compilation command: ${compileSecretTestCommand}`);
+
+    const secretTestCompilationResult = await execPromise(
+      compileSecretTestCommand,
+      { cwd: workingDir }
+    );
+
+    if (secretTestCompilationResult.error) {
+      return {
+        success: false,
+        status: '💀',
+        message: 'Secret test compilation failed',
+        details: `Secret test compilation error:\n${secretTestCompilationResult.stderr}`,
+      };
+    }
+
+    // Run the secret tests
+    const runSecretTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${secretTestClassName}`;
+    console.log(`Secret test execution command: ${runSecretTestCommand}`);
+
+    const secretTestResult = await execPromise(runSecretTestCommand, {
+      cwd: workingDir,
+      timeout: 30000, // 30 second timeout
+    });
+
+    if (secretTestResult.error && secretTestResult.error.code !== 'timeout') {
+      // Secret tests ran but some failed
+      return {
+        success: false,
+        status: '💀',
+        message: 'Secret tests failed',
+        details: `Secret test output:\n${secretTestResult.stdout}\n\nErrors:\n${secretTestResult.stderr}`,
+      };
+    }
+
+    return {
+      success: true,
+      status: '✅',
+      message: 'All secret tests passed!',
+      details: 'Your code passed all secret tests successfully!',
+    };
+  } catch (error) {
+    console.error('Error running secret tests:', error);
+    return {
+      success: false,
+      status: '⚠️',
+      message: 'Secret test execution error',
+      details: `An error occurred while running secret tests: ${error.message}`,
+    };
+  }
 }
 
 function execPromise(command, options) {

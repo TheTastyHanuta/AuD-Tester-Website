@@ -171,17 +171,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
     }
-        // Build result HTML
-        let secretTestsHtml = '';
-        if (result.deadlinePassed && result.secretTests) {
-            let secretResultType = 'error';
-            if (result.secretTests.success) {
-                secretResultType = 'success';
-            } else if (result.secretTests.status === '⚠️') {
-                secretResultType = 'warning';
-            }
-            
-            secretTestsHtml = `
+    // Build result HTML
+    let secretTestsHtml = '';
+    if (result.deadlinePassed && result.secretTests) {
+      let secretResultType = 'error';
+      if (result.secretTests.success) {
+        secretResultType = 'success';
+      } else if (result.secretTests.status === '⚠️') {
+        secretResultType = 'warning';
+      }
+
+      secretTestsHtml = `
                 <div class="result-card result-${secretResultType} secret-tests">
                     <div class="result-status">${result.secretTests.status || '❓'}</div>
                     <div class="result-message">
@@ -190,9 +190,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${result.secretTests.details ? `<div class="result-details">${escapeHtml(result.secretTests.details)}</div>` : ''}
                 </div>
             `;
-        }
-        
-        const resultHtml = `
+    }
+
+    const resultHtml = `
             <div class="result-card result-${resultType}">
                 <div class="result-status">${result.status || '❓'}</div>
                 <div class="result-message">

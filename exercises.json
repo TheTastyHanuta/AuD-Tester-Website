@@ -53,7 +53,7 @@
     "points": 18,
     "hasTests": true,
     "required_files": ["Color.java"],
-    "deadline": "2025-10-06T23:59:59Z"
+    "deadline": "2025-08-06T23:59:59Z"
   },
   {
     "id": "snakegame",
