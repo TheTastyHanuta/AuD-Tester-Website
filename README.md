@@ -35,6 +35,25 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    javac -version
    ```
 
+## Development
+
+### Code Formatting
+
+This project uses Prettier for consistent code formatting. Available commands:
+
+```bash
+# Format all files
+npm run format
+
+# Check if files are formatted correctly
+npm run format:check
+
+# Format specific file types
+npm run format:js    # JavaScript files
+npm run format:json  # JSON files
+npm run format:md    # Markdown files
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -58,14 +77,12 @@ Example exercise configuration:
 
 ```json
 {
-    "id": "helloworld",
-    "name": "Hello World",
-    "points": 3,
-    "hasTests": false,
-      "required_files": [
-         "HelloWorld.java"
-      ],
-    "deadline": "2025-09-01T23:59:59Z"
+  "id": "helloworld",
+  "name": "Hello World",
+  "points": 3,
+  "hasTests": false,
+  "required_files": ["HelloWorld.java"],
+  "deadline": "2025-09-01T23:59:59Z"
 }
 ```
 
@@ -84,7 +101,6 @@ node server.js
 ```
 
 The application will start on `http://localhost:3500` by default.
-
 
 ## Project Structure
 

@@ -1,154 +1,128 @@
 [
-    {
-        "id": "helloworld",
-        "name": "Hello World",
-        "points": 3,
-        "hasTests": false,
-        "required_files": [
-            "HelloWorld.java"
-        ],
-        "deadline": "2025-09-01T23:59:59Z"
-    },
-    {
-        "id": "circuit",
-        "name": "Circuit",
-        "points": 16,
-        "hasTests": false,
-        "required_files": [
-            "Circuit.java"
-        ],
-        "deadline": "2025-09-01T23:59:59Z"
-    },
-        {
-        "id": "loops",
-        "name": "Loops",
-        "points": 11,
-        "hasTests": false,
-        "required_files": [
-            "Loops.java"
-        ],
-        "deadline": "2025-09-15T23:59:59Z"
-    },
-    {
-        "id": "arrays",
-        "name": "Arrays",
-        "points": 14,
-        "hasTests": false,
-        "required_files": [
-            "Arrays.java"
-        ],
-        "deadline": "2025-09-08T23:59:59Z"
-    },
-    {
-        "id": "signalplotter",
-        "name": "Signal Plotter",
-        "points": 20,
-        "hasTests": true,
-        "required_files": [
-            "SignalPlotter.java"
-        ],
-        "deadline": "2025-09-29T23:59:59Z"
-    },
-    {
-        "id": "caesarchiffre",
-        "name": "Caesar Chiffre",
-        "points": 13,
-        "hasTests": true,
-        "required_files": [
-            "CaesarChiffre.java"
-        ],
-        "deadline": "2025-09-22T23:59:59Z"
-    },
+  {
+    "id": "helloworld",
+    "name": "Hello World",
+    "points": 3,
+    "hasTests": false,
+    "required_files": ["HelloWorld.java"],
+    "deadline": "2025-09-01T23:59:59Z"
+  },
+  {
+    "id": "circuit",
+    "name": "Circuit",
+    "points": 16,
+    "hasTests": false,
+    "required_files": ["Circuit.java"],
+    "deadline": "2025-09-01T23:59:59Z"
+  },
+  {
+    "id": "loops",
+    "name": "Loops",
+    "points": 11,
+    "hasTests": false,
+    "required_files": ["Loops.java"],
+    "deadline": "2025-09-15T23:59:59Z"
+  },
+  {
+    "id": "arrays",
+    "name": "Arrays",
+    "points": 14,
+    "hasTests": false,
+    "required_files": ["Arrays.java"],
+    "deadline": "2025-09-08T23:59:59Z"
+  },
+  {
+    "id": "signalplotter",
+    "name": "Signal Plotter",
+    "points": 20,
+    "hasTests": true,
+    "required_files": ["SignalPlotter.java"],
+    "deadline": "2025-09-29T23:59:59Z"
+  },
+  {
+    "id": "caesarchiffre",
+    "name": "Caesar Chiffre",
+    "points": 13,
+    "hasTests": true,
+    "required_files": ["CaesarChiffre.java"],
+    "deadline": "2025-09-22T23:59:59Z"
+  },
 
-    {
-        "id": "color",
-        "name": "Color",
-        "points": 18,
-        "hasTests": true,
-        "required_files": [
-            "Color.java"
-        ],
-        "deadline": "2025-10-06T23:59:59Z"
-    },
-    {
-        "id": "snakegame",
-        "name": "Snake Game",
-        "points": 60,
-        "hasTests": true,
-        "required_files": [
-            "SnakeGame.java",
-            "Snake.java",
-            "GameItem.java",
-            "Brick.java",
-            "Apple.java",
-            "Point.java"
-        ],
-        "deadline": "2025-10-13T23:59:59Z"
-    },
-    {
-        "id": "paintcan",
-        "name": "Paint Can",
-        "points": 7,
-        "hasTests": false,
-        "required_files": [
-            "PaintCan.java"
-        ],
-        "deadline": "2025-10-20T23:59:59Z"
-    },
-    {
-        "id": "recursion",
-        "name": "Recursion",
-        "points": 12,
-        "hasTests": false,
-        "required_files": [
-            "Recursion.java"
-        ],
-        "deadline": "2025-10-27T23:59:59Z"
-    },
-    {
-        "id": "sierpinski",
-        "name": "Sierpinski Triangle",
-        "points": 11,
-        "hasTests": false,
-        "required_files": [
-            "SierpinskiTriangle.java"
-        ],
-        "deadline": "2025-11-03T23:59:59Z"
-    },
-    {
-        "id": "sortedset",
-        "name": "Sorted Set",
-        "points": 36,
-        "hasTests": true,
-        "required_files": [
-            "SortedSet.java",
-            "ElementExistsException.java"
-        ],
-        "deadline": "2025-11-10T23:59:59Z"
-    },
-    {
-        "id": "contactdb",
-        "name": "Contact Database",
-        "points": 27,
-        "hasTests": true,
-        "required_files": [
-            "ContactDatabase.java",
-            "Contact.java",
-            "AuDClosedHashTable.java",
-            "AuDHashTable.java",
-            "AuDOpenHashTable.java"
-        ],
-        "deadline": "2025-11-17T23:59:59Z"
-    },
-    {
-        "id": "binarytree",
-        "name": "Binary Search Tree",
-        "points": 20,
-        "hasTests": true,
-        "required_files": [
-            "BinarySearchTree.java",
-            "ElementExistsException.java"
-        ],
-        "deadline": "2025-11-24T23:59:59Z"
-    }
+  {
+    "id": "color",
+    "name": "Color",
+    "points": 18,
+    "hasTests": true,
+    "required_files": ["Color.java"],
+    "deadline": "2025-10-06T23:59:59Z"
+  },
+  {
+    "id": "snakegame",
+    "name": "Snake Game",
+    "points": 60,
+    "hasTests": true,
+    "required_files": [
+      "SnakeGame.java",
+      "Snake.java",
+      "GameItem.java",
+      "Brick.java",
+      "Apple.java",
+      "Point.java"
+    ],
+    "deadline": "2025-10-13T23:59:59Z"
+  },
+  {
+    "id": "paintcan",
+    "name": "Paint Can",
+    "points": 7,
+    "hasTests": false,
+    "required_files": ["PaintCan.java"],
+    "deadline": "2025-10-20T23:59:59Z"
+  },
+  {
+    "id": "recursion",
+    "name": "Recursion",
+    "points": 12,
+    "hasTests": false,
+    "required_files": ["Recursion.java"],
+    "deadline": "2025-10-27T23:59:59Z"
+  },
+  {
+    "id": "sierpinski",
+    "name": "Sierpinski Triangle",
+    "points": 11,
+    "hasTests": false,
+    "required_files": ["SierpinskiTriangle.java"],
+    "deadline": "2025-11-03T23:59:59Z"
+  },
+  {
+    "id": "sortedset",
+    "name": "Sorted Set",
+    "points": 36,
+    "hasTests": true,
+    "required_files": ["SortedSet.java", "ElementExistsException.java"],
+    "deadline": "2025-11-10T23:59:59Z"
+  },
+  {
+    "id": "contactdb",
+    "name": "Contact Database",
+    "points": 27,
+    "hasTests": true,
+    "required_files": [
+      "ContactDatabase.java",
+      "Contact.java",
+      "AuDClosedHashTable.java",
+      "AuDHashTable.java",
+      "AuDOpenHashTable.java"
+    ],
+    "deadline": "2025-11-17T23:59:59Z"
+  },
+  {
+    "id": "binarytree",
+    "name": "Binary Search Tree",
+    "points": 20,
+    "hasTests": true,
+    "required_files": ["BinarySearchTree.java", "ElementExistsException.java"],
+    "deadline": "2025-11-24T23:59:59Z"
+  }
 ]
