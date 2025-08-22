@@ -163,6 +163,7 @@ app.post('/submit', (req, res) => {
         );
         if (!requiredFilesCheck.valid) {
           logger.warn('Missing required files in submission', {
+            sessionId: sessionId,
             exercise: exercise,
             missingFiles: requiredFilesCheck.details,
           });
@@ -399,7 +400,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
 
       exec(command, { cwd: workingDir }, (error, stdout, stderr) => {
         if (error) {
-          logger.error('Compilation failed', {
+          logger.info('Compilation failed', {
             sessionId: sessionId,
             error: error.message,
             stderr: stderr,
@@ -480,6 +481,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
     const testClassName = testClassMapping[exercise];
     if (!testClassName) {
       logger.warn('No test class mapping found', {
+        sessionId: sessionId,
         exercise: exercise,
         workingDir: workingDir,
       });
@@ -496,6 +498,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
     const testFilePath = path.join(workingDir, `${testClassName}.java`);
     if (!(await fs.pathExists(testFilePath))) {
       logger.warn('Test file not found', {
+        sessionId: sessionId,
         testClass: testClassName,
         workingDir: workingDir,
         exercise: exercise,
@@ -522,7 +525,8 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
     });
 
     if (testCompilationResult.error) {
-      logger.error('Test compilation failed', {
+      logger.info('Test compilation failed', {
+        sessionId: sessionId,
         testClass: testClassName,
         error: testCompilationResult.stderr,
         stdout: testCompilationResult.stdout,
@@ -539,6 +543,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
     // Run the public tests
     const runTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${testClassName}`;
     logger.debug('Running public tests', {
+      sessionId: sessionId,
       command: runTestCommand,
       testClass: testClassName,
     });
@@ -550,7 +555,8 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
 
     if (testResult.error && testResult.error.code !== 'timeout') {
       // Tests ran but some failed
-      logger.warn('Public tests failed', {
+      logger.info('Public tests failed', {
+        sessionId: sessionId,
         testClass: testClassName,
         error: testResult.stderr,
         stdout: testResult.stdout,
@@ -565,6 +571,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
     }
 
     logger.info('Public tests passed', {
+      sessionId: sessionId,
       testClass: testClassName,
       exercise: exercise,
       workingDir: workingDir,
@@ -579,6 +586,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
     };
   } catch (error) {
     logger.error('Error running public tests', {
+      sessionId: sessionId,
       error: error.message,
       stack: error.stack,
       exercise: exercise,
@@ -668,7 +676,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
     );
 
     if (secretTestCompilationResult.error) {
-      logger.error('Secret test compilation failed', {
+      logger.info('Secret test compilation failed', {
+        sessionId: sessionId,
         testClass: secretTestClassName,
         error: secretTestCompilationResult.stderr,
         stdout: secretTestCompilationResult.stdout,
@@ -685,6 +694,7 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
     // Run the secret tests
     const runSecretTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${secretTestClassName}`;
     logger.debug('Running secret tests', {
+      sessionId: sessionId,
       command: runSecretTestCommand,
       testClass: secretTestClassName,
       exercise: exercise,
@@ -697,7 +707,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
 
     if (secretTestResult.error && secretTestResult.error.code !== 'timeout') {
       // Secret tests ran but some failed
-      logger.warn('Secret tests failed', {
+      logger.info('Secret tests failed', {
+        sessionId: sessionId,
         testClass: secretTestClassName,
         error: secretTestResult.stderr,
         stdout: secretTestResult.stdout,
@@ -725,6 +736,7 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
     };
   } catch (error) {
     logger.error('Error running secret tests', {
+      sessionId: sessionId,
       error: error.message,
       stack: error.stack,
       exercise: exercise,
