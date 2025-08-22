@@ -1,18 +1,10 @@
 [
   {
-    "id": "helloworld",
-    "name": "Hello World",
-    "points": 3,
+    "id": "helloworld-circuit",
+    "name": "Hello World & Circuit",
+    "points": 19,
     "hasTests": false,
-    "required_files": ["HelloWorld.java"],
-    "deadline": "2025-09-01T23:59:59Z"
-  },
-  {
-    "id": "circuit",
-    "name": "Circuit",
-    "points": 16,
-    "hasTests": false,
-    "required_files": ["Circuit.java"],
+    "required_files": ["HelloWorld.java", "Circuit.java"],
     "deadline": "2025-09-01T23:59:59Z"
   },
   {

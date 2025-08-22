@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="result-card result-${secretResultType} secret-tests">
                     <div class="result-status">${result.secretTests.status || '❓'}</div>
                     <div class="result-message">
-                        <strong>Secret Tests:</strong> ${escapeHtml(result.secretTests.message || 'Unknown result')}
+                        <strong>Zusätzliche Tests:</strong> ${escapeHtml(result.secretTests.message || 'Unknown result')}
                     </div>
                     ${result.secretTests.details ? `<div class="result-details">${escapeHtml(result.secretTests.details)}</div>` : ''}
                 </div>
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="result-card result-${resultType}">
                 <div class="result-status">${result.status || '❓'}</div>
                 <div class="result-message">
-                    <strong>Public Tests:</strong> ${escapeHtml(result.message || 'Unknown result')}
+                    <strong>Basic Tests:</strong> ${escapeHtml(result.message || 'Unknown result')}
                 </div>
                 ${deadlineInfo}
                 ${result.details ? `<div class="result-details">${escapeHtml(result.details)}</div>` : ''}
