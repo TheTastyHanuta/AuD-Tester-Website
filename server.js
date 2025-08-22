@@ -305,7 +305,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig) {
         console.log('Error handling JAR files:', jarError.message);
       }
 
-      const command = `javac -source 8 -target 8 -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
+      const command = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
       console.log(`Compilation command: ${command}`);
 
       exec(command, { cwd: workingDir }, (error, stdout, stderr) => {
@@ -384,7 +384,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
     }
 
     // Compile test files
-    const compileTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${testClassName}.java"`;
+    const compileTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${testClassName}.java"`;
     console.log(`Test compilation command: ${compileTestCommand}`);
 
     const testCompilationResult = await execPromise(compileTestCommand, {
@@ -495,7 +495,7 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
     }
 
     // Compile secret test files
-    const compileSecretTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${secretTestClassName}.java"`;
+    const compileSecretTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${secretTestClassName}.java"`;
     console.log(`Secret test compilation command: ${compileSecretTestCommand}`);
 
     const secretTestCompilationResult = await execPromise(
