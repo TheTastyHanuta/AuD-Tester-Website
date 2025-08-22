@@ -185,7 +185,7 @@ app.post('/submit', (req, res) => {
           const deadlinePassed = new Date() > new Date(exerciseConfig.deadline);
           let secretTestResult = null;
 
-          if (deadlinePassed) {
+          if (deadlinePassed && process.env.SHOW_SECRET_TESTS === 'true') {
             secretTestResult = await runSecretTests(
               tempDir,
               exercise,
@@ -204,7 +204,11 @@ app.post('/submit', (req, res) => {
           };
 
           // Add secret test results if deadline has passed
-          if (deadlinePassed && secretTestResult) {
+          if (
+            deadlinePassed &&
+            secretTestResult &&
+            process.env.SHOW_SECRET_TESTS === 'true'
+          ) {
             response.secretTests = {
               success: secretTestResult.success,
               status: secretTestResult.status,
