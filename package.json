@@ -1,6 +1,6 @@
 {
   "name": "aud-tester-website",
-  "version": "1.4.2",
+  "version": "1.5.3",
   "description": "Automated feedback system for Java code submissions in Algorithms and Data Structures",
   "main": "server.js",
   "scripts": {
