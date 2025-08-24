@@ -12,6 +12,7 @@ const logger = require('./logger');
 dotenv.config();
 
 const exercises = require('./exercises.json');
+const { Logger } = require('winston');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -139,6 +140,10 @@ app.post('/submit', (req, res) => {
         );
         // If encoding check fails, return early
         if (!encodingCheck.valid) {
+          Logger.info('Encoding check failed', {
+            sessionId: req.session.id,
+            details: encodingCheck.details,
+          });
           return res.json({
             success: false,
             status: '⚠️',
@@ -164,7 +169,7 @@ app.post('/submit', (req, res) => {
         );
         // If required files are missing, return early
         if (!requiredFilesCheck.valid) {
-          logger.warn('Missing required files in submission', {
+          logger.info('Missing required files in submission', {
             sessionId: sessionId,
             exercise: exercise,
             missingFiles: requiredFilesCheck.details,
@@ -414,7 +419,6 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
             error: error.message,
             stderr: stderr,
             stdout: stdout,
-            command: command,
             files: fileNames,
           });
           resolve({
@@ -738,6 +742,7 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
 
     // Secret tests passed
     logger.info('Secret tests passed', {
+      sessionId: sessionId,
       testClass: secretTestClassName,
       exercise: exercise,
       workingDir: workingDir,
