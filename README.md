@@ -44,14 +44,6 @@ This project uses Prettier for consistent code formatting. Available commands:
 ```bash
 # Format all files
 npm run format
-
-# Check if files are formatted correctly
-npm run format:check
-
-# Format specific file types
-npm run format:js    # JavaScript files
-npm run format:json  # JSON files
-npm run format:md    # Markdown files
 ```
 
 ## Configuration
@@ -60,7 +52,13 @@ npm run format:md    # Markdown files
 
 The application uses the following environment variables:
 
-- `PORT`: The port on which the server will run (default: 3500)
+- `PORT`: The port on which the server will run (default: 3000)
+- `SHOW_SECRET_TESTS`: Boolean flag to show/hide secret tests in the UI
+- `SESSION_SECRET`: Secret key for session encryption
+- `NODE_ENV`: The environment in which the application is running (default: development)
+- `LOG_LEVEL`: The logging level for the application (default: info)
+
+Create a `.env` file in the root directory and copy the contents of `.env.example` into it. Then, customize the values as needed.
 
 ### Exercise Setup
 
@@ -100,7 +98,23 @@ Example exercise configuration:
 node server.js
 ```
 
-The application will start on `http://localhost:3500` by default.
+The application will start on `http://localhost:3000` by default.
+
+#### Starting in Production Mode
+
+To start the application in production mode, use the following command:
+
+```bash
+npm run start:prod
+```
+
+#### Starting with hot reloading
+
+For development, you can use hot reloading to automatically restart the server when file changes are detected. Use the following command:
+
+```bash
+npm run dev
+```
 
 ## Project Structure
 
@@ -214,7 +228,7 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 
    ```bash
    sudo npm install -g pm2
-   pm2 start server.js --name "aud-tester"
+   pm2 start:prod server.js --name "aud-tester"
    pm2 startup
    pm2 save
    ```

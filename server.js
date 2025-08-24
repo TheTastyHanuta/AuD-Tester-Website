@@ -137,6 +137,7 @@ app.post('/submit', (req, res) => {
           tempDir,
           uploadedFiles.map(f => f.filename)
         );
+        // If encoding check fails, return early
         if (!encodingCheck.valid) {
           return res.json({
             success: false,
@@ -145,7 +146,7 @@ app.post('/submit', (req, res) => {
             details: encodingCheck.details,
           });
         }
-
+        // If no exercise selected, return early
         const exerciseConfig = getExerciseConfig(exercise);
         if (!exerciseConfig) {
           return res.json({
@@ -161,6 +162,7 @@ app.post('/submit', (req, res) => {
           uploadedFiles.map(f => f.filename),
           exerciseConfig.required_files || []
         );
+        // If required files are missing, return early
         if (!requiredFilesCheck.valid) {
           logger.warn('Missing required files in submission', {
             sessionId: sessionId,
@@ -172,7 +174,8 @@ app.post('/submit', (req, res) => {
             status: '❌',
             message: 'Fehlende erforderliche Dateien',
             details: requiredFilesCheck.details,
-            points: 0,
+            deadline: exerciseConfig.deadline,
+            deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
           });
         }
 
@@ -202,13 +205,16 @@ app.post('/submit', (req, res) => {
           }
         }
 
+        /* Compile submission Java files
+        This will fail if the code does use non Java 8 features and has syntax errors.
+        */
         const compilationResult = await compileJavaFiles(
           tempDir,
           uploadedFiles.map(f => f.filename),
           exerciseConfig,
           sessionId
         );
-
+        // If submission compilation fails return early
         if (!compilationResult.success) {
           return res.json({
             success: false,
@@ -218,7 +224,9 @@ app.post('/submit', (req, res) => {
           });
         }
 
-        // If exercise has tests, try to compile and run public tests
+        /* If exercise has tests, try to compile and run public tests
+        These will fail if methods are not named correctly or if the code does not follow the expected structure.
+        */
         if (exerciseConfig.hasTests) {
           const testResult = await runPublicTests(
             tempDir,
@@ -226,7 +234,7 @@ app.post('/submit', (req, res) => {
             exerciseConfig,
             sessionId
           );
-
+          // If public tests compilation fails, return early
           if (!testResult.success) {
             return res.json({
               success: false,
@@ -234,11 +242,10 @@ app.post('/submit', (req, res) => {
               message: testResult.message,
               details: testResult.details,
               deadline: exerciseConfig.deadline,
-              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
             });
           }
 
-          // Check if deadline has passed and run secret tests if available
+          // Check if deadline has passed and is enabled in config --> run secret tests if available
           const deadlinePassed = new Date() > new Date(exerciseConfig.deadline);
           let secretTestResult = null;
 
@@ -278,7 +285,7 @@ app.post('/submit', (req, res) => {
           return res.json(response);
         }
 
-        // If no tests, just return compilation success
+        // If no tests at all, just return compilation success
         res.json({
           success: true,
           status: '✅',
@@ -391,6 +398,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         });
       }
 
+      // Prepare compilation command
       const command = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
       logger.debug('Executing compilation command', {
         sessionId: sessionId,
@@ -398,6 +406,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         workingDir: workingDir,
       });
 
+      // Execute compilation command
       exec(command, { cwd: workingDir }, (error, stdout, stderr) => {
         if (error) {
           logger.info('Compilation failed', {
@@ -467,7 +476,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
       });
     }
 
-    // Determine test class name
+    // Determine public test class name
     const testClassMapping = {
       caesarchiffre: 'CaesarChiffrePublicTest',
       signalplotter: 'SignalPlotterPublicTest',
@@ -478,9 +487,10 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
       binarytree: 'BinarySearchTreePublicTest',
     };
 
+    // If no public test class name is found, return early
     const testClassName = testClassMapping[exercise];
     if (!testClassName) {
-      logger.warn('No test class mapping found', {
+      logger.warn('No public test class mapping found', {
         sessionId: sessionId,
         exercise: exercise,
         workingDir: workingDir,
@@ -494,10 +504,10 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
       };
     }
 
-    // Check if test file exists
+    // Check if test file exists otherwise return early
     const testFilePath = path.join(workingDir, `${testClassName}.java`);
     if (!(await fs.pathExists(testFilePath))) {
-      logger.warn('Test file not found', {
+      logger.warn('Public Test file not found', {
         sessionId: sessionId,
         testClass: testClassName,
         workingDir: workingDir,
@@ -512,20 +522,22 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
       };
     }
 
-    // Compile test files
+    // Prepare public test compilation command
     const compileTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${testClassName}.java"`;
-    logger.debug('Compiling test files', {
+    logger.debug('Compiling public test files', {
       sessionId: sessionId,
       command: compileTestCommand,
       testClass: testClassName,
     });
 
+    // Execute public test compilation command
     const testCompilationResult = await execPromise(compileTestCommand, {
       cwd: workingDir,
     });
 
+    // If public test compilation fails, return early
     if (testCompilationResult.error) {
-      logger.info('Test compilation failed', {
+      logger.info('Public test compilation failed', {
         sessionId: sessionId,
         testClass: testClassName,
         error: testCompilationResult.stderr,
@@ -570,6 +582,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
       };
     }
 
+    // Public test passed
     logger.info('Public tests passed', {
       sessionId: sessionId,
       testClass: testClassName,
@@ -675,6 +688,7 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
       { cwd: workingDir }
     );
 
+    // If secret test compilation fails, return early
     if (secretTestCompilationResult.error) {
       logger.info('Secret test compilation failed', {
         sessionId: sessionId,
@@ -686,8 +700,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
       return {
         success: false,
         status: '💀',
-        message: 'Zusätzliche Testkompilierung fehlgeschlagen',
-        details: `Zusätzliche Testkompilierungsfehler:\n${secretTestCompilationResult.stderr}`,
+        message: 'Zusätzliche Testkompilierung fehlgeschlagen.',
+        details: `Dies bedeutet normalerweise:\n- Fehlende erforderliche Methoden\n- Falsche Methodensignaturen\n- Falsche Klassen-/Methodennamen\n\nZusätzliche Testkompilierungsfehler:\n${secretTestCompilationResult.stderr}`,
       };
     }
 
@@ -717,11 +731,12 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
       return {
         success: false,
         status: '💀',
-        message: 'Zusätzliche Tests sind fehlgeschlagen',
-        details: `Zusätzliche Testausgabe:\n${secretTestResult.stdout}\n\nFehler:\n${secretTestResult.stderr}`,
+        message: 'Zusätzliche Tests sind fehlgeschlagen.',
+        details: `Du kannst die Dateien so abgeben, aber sie beinhalten noch Fehler.\nZusätzliche Testausgabe:\n${secretTestResult.stdout}\n\nFehler:\n${secretTestResult.stderr}`,
       };
     }
 
+    // Secret tests passed
     logger.info('Secret tests passed', {
       testClass: secretTestClassName,
       exercise: exercise,
@@ -732,7 +747,8 @@ async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
       success: true,
       status: '✅',
       message: 'Alle zusätzlichen Tests bestanden!',
-      details: 'Dein Code hat alle zusätzlichen Tests erfolgreich bestanden!',
+      details:
+        'Dein Code hat alle zusätzlichen Tests erfolgreich bestanden! Das sollten viele Punkte werden!',
     };
   } catch (error) {
     logger.error('Error running secret tests', {
