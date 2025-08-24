@@ -140,7 +140,7 @@ app.post('/submit', (req, res) => {
         );
         // If encoding check fails, return early
         if (!encodingCheck.valid) {
-          Logger.info('Encoding check failed', {
+          logger.info('Encoding check failed', {
             sessionId: req.session.id,
             details: encodingCheck.details,
           });
