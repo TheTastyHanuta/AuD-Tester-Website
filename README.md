@@ -226,12 +226,24 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 
 4. **Setup Process Manager** (PM2 for production):
 
-   ```bash
-   sudo npm install -g pm2
-   pm2 start:prod server.js --name "aud-tester"
-   pm2 startup
-   pm2 save
-   ```
+Set environment variables for production:
+
+```bash
+export PORT=3000
+export SHOW_SECRET_TESTS=false
+export SESSION_SECRET=your-session-secret
+export LOG_LEVEL=info
+export NODE_ENV=production
+```
+
+Then create a PM2 startup script:
+
+```bash
+sudo npm install -g pm2
+pm2 start server.js --name "aud-tester"
+pm2 startup
+pm2 save
+```
 
 #### Monitoring and Maintenance
 
@@ -252,4 +264,4 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 
 ## License
 
-This project is open source and available under standard academic use terms.
+This project is open source and available under MIT License.
