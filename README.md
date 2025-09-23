@@ -44,14 +44,6 @@ This project uses Prettier for consistent code formatting. Available commands:
 ```bash
 # Format all files
 npm run format
-
-# Check if files are formatted correctly
-npm run format:check
-
-# Format specific file types
-npm run format:js    # JavaScript files
-npm run format:json  # JSON files
-npm run format:md    # Markdown files
 ```
 
 ## Configuration
@@ -60,7 +52,13 @@ npm run format:md    # Markdown files
 
 The application uses the following environment variables:
 
-- `PORT`: The port on which the server will run (default: 3500)
+- `PORT`: The port on which the server will run (default: 3000)
+- `SHOW_SECRET_TESTS`: Boolean flag to show/hide secret tests in the UI
+- `SESSION_SECRET`: Secret key for session encryption
+- `NODE_ENV`: The environment in which the application is running (default: development)
+- `LOG_LEVEL`: The logging level for the application (default: info)
+
+Create a `.env` file in the root directory and copy the contents of `.env.example` into it. Then, customize the values as needed.
 
 ### Exercise Setup
 
@@ -100,7 +98,23 @@ Example exercise configuration:
 node server.js
 ```
 
-The application will start on `http://localhost:3500` by default.
+The application will start on `http://localhost:3000` by default.
+
+#### Starting in Production Mode
+
+To start the application in production mode, use the following command:
+
+```bash
+npm run start:prod
+```
+
+#### Starting with hot reloading
+
+For development, you can use hot reloading to automatically restart the server when file changes are detected. Use the following command:
+
+```bash
+npm run dev
+```
 
 ## Project Structure
 
@@ -212,12 +226,24 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 
 4. **Setup Process Manager** (PM2 for production):
 
-   ```bash
-   sudo npm install -g pm2
-   pm2 start server.js --name "aud-tester"
-   pm2 startup
-   pm2 save
-   ```
+Set environment variables for production:
+
+```bash
+export PORT=3000
+export SHOW_SECRET_TESTS=false
+export SESSION_SECRET=your-session-secret
+export LOG_LEVEL=info
+export NODE_ENV=production
+```
+
+Then create a PM2 startup script:
+
+```bash
+sudo npm install -g pm2
+pm2 start server.js --name "aud-tester"
+pm2 startup
+pm2 save
+```
 
 #### Monitoring and Maintenance
 
@@ -238,4 +264,4 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 
 ## License
 
-This project is open source and available under standard academic use terms.
+This project is open source and available under MIT License.

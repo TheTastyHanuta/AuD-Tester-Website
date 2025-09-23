@@ -5,17 +5,52 @@ const fs = require('fs-extra');
 const { exec } = require('child_process');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const morgan = require('morgan');
+const session = require('express-session');
+const logger = require('./logger');
 
 dotenv.config();
 
 const exercises = require('./exercises.json');
+const { Logger } = require('winston');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
+// Session configuration
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'secret-change-in-production',
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+    },
+  })
+);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// HTTP request logging with session ID
+morgan.token('sessionId', function (req, res) {
+  return req.session ? req.session.id : 'no-session';
+});
+
+app.use(
+  morgan(
+    ':remote-addr [:sessionId] - ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"',
+    {
+      stream: logger.stream,
+    }
+  )
+);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -43,6 +78,11 @@ const upload = multer({
 });
 
 app.get('/', (req, res) => {
+  logger.info('Main page accessed', {
+    sessionId: req.session.id,
+    userAgent: req.get('User-Agent'),
+    ip: req.ip,
+  });
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -51,7 +91,11 @@ app.post('/submit', (req, res) => {
 
   uploadMiddleware(req, res, async err => {
     if (err) {
-      console.error('Multer error:', err);
+      logger.error('File upload error', {
+        sessionId: req.session?.id || 'no-session',
+        error: err.message,
+        stack: err.stack,
+      });
       return res.status(400).json({
         error: 'File upload error',
         status: '❌',
@@ -61,6 +105,9 @@ app.post('/submit', (req, res) => {
 
     try {
       if (!req.files || req.files.length === 0) {
+        logger.warn('No Java files uploaded in submission', {
+          sessionId: req.session?.id || 'no-session',
+        });
         return res
           .status(400)
           .json({ error: 'Keine Java-Dateien hochgeladen' });
@@ -68,10 +115,14 @@ app.post('/submit', (req, res) => {
 
       const { exercise } = req.body;
       const uploadedFiles = req.files;
+      const sessionId = req.session.id;
 
-      console.log(
-        `Processing submission: ${uploadedFiles.map(f => f.filename).join(', ')} for exercise: ${exercise}`
-      );
+      logger.info('Processing submission', {
+        sessionId: sessionId,
+        files: uploadedFiles.map(f => f.filename),
+        exercise: exercise,
+        fileCount: uploadedFiles.length,
+      });
 
       const tempDir = path.join('temp', `${Date.now()}_${Math.random()}`);
       await fs.ensureDir(tempDir);
@@ -87,7 +138,12 @@ app.post('/submit', (req, res) => {
           tempDir,
           uploadedFiles.map(f => f.filename)
         );
+        // If encoding check fails, return early
         if (!encodingCheck.valid) {
+          logger.info('Encoding check failed', {
+            sessionId: req.session.id,
+            details: encodingCheck.details,
+          });
           return res.json({
             success: false,
             status: '⚠️',
@@ -95,7 +151,7 @@ app.post('/submit', (req, res) => {
             details: encodingCheck.details,
           });
         }
-
+        // If no exercise selected, return early
         const exerciseConfig = getExerciseConfig(exercise);
         if (!exerciseConfig) {
           return res.json({
@@ -111,13 +167,20 @@ app.post('/submit', (req, res) => {
           uploadedFiles.map(f => f.filename),
           exerciseConfig.required_files || []
         );
+        // If required files are missing, return early
         if (!requiredFilesCheck.valid) {
+          logger.info('Missing required files in submission', {
+            sessionId: sessionId,
+            exercise: exercise,
+            missingFiles: requiredFilesCheck.details,
+          });
           return res.json({
             success: false,
             status: '❌',
             message: 'Fehlende erforderliche Dateien',
             details: requiredFilesCheck.details,
-            points: 0,
+            deadline: exerciseConfig.deadline,
+            deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
           });
         }
 
@@ -147,12 +210,16 @@ app.post('/submit', (req, res) => {
           }
         }
 
+        /* Compile submission Java files
+        This will fail if the code does use non Java 8 features and has syntax errors.
+        */
         const compilationResult = await compileJavaFiles(
           tempDir,
           uploadedFiles.map(f => f.filename),
-          exerciseConfig
+          exerciseConfig,
+          sessionId
         );
-
+        // If submission compilation fails return early
         if (!compilationResult.success) {
           return res.json({
             success: false,
@@ -162,14 +229,17 @@ app.post('/submit', (req, res) => {
           });
         }
 
-        // If exercise has tests, try to compile and run public tests
+        /* If exercise has tests, try to compile and run public tests
+        These will fail if methods are not named correctly or if the code does not follow the expected structure.
+        */
         if (exerciseConfig.hasTests) {
           const testResult = await runPublicTests(
             tempDir,
             exercise,
-            exerciseConfig
+            exerciseConfig,
+            sessionId
           );
-
+          // If public tests compilation fails, return early
           if (!testResult.success) {
             return res.json({
               success: false,
@@ -177,11 +247,10 @@ app.post('/submit', (req, res) => {
               message: testResult.message,
               details: testResult.details,
               deadline: exerciseConfig.deadline,
-              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
             });
           }
 
-          // Check if deadline has passed and run secret tests if available
+          // Check if deadline has passed and is enabled in config --> run secret tests if available
           const deadlinePassed = new Date() > new Date(exerciseConfig.deadline);
           let secretTestResult = null;
 
@@ -189,7 +258,8 @@ app.post('/submit', (req, res) => {
             secretTestResult = await runSecretTests(
               tempDir,
               exercise,
-              exerciseConfig
+              exerciseConfig,
+              sessionId
             );
           }
 
@@ -220,7 +290,7 @@ app.post('/submit', (req, res) => {
           return res.json(response);
         }
 
-        // If no tests, just return compilation success
+        // If no tests at all, just return compilation success
         res.json({
           success: true,
           status: '✅',
@@ -231,7 +301,13 @@ app.post('/submit', (req, res) => {
           deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
         });
       } catch (processError) {
-        console.error('Error during processing:', processError);
+        logger.error('Error during submission processing', {
+          sessionId: sessionId,
+          error: processError.message,
+          stack: processError.stack,
+          exercise: exercise,
+          tempDir: tempDir,
+        });
         if (!res.headersSent) {
           return res.status(500).json({
             error: 'Processing error',
@@ -243,14 +319,19 @@ app.post('/submit', (req, res) => {
         try {
           await cleanupTempDir(tempDir);
         } catch (cleanupError) {
-          console.error(
-            'Warning: Could not clean up temp directory:',
-            cleanupError.message
-          );
+          logger.warn('Could not clean up temp directory', {
+            tempDir: tempDir,
+            error: cleanupError.message,
+          });
         }
       }
     } catch (error) {
-      console.error('Error processing submission:', error);
+      logger.error('Error processing submission', {
+        sessionId: req.session?.id || 'no-session',
+        error: error.message,
+        stack: error.stack,
+        exercise: req.body?.exercise,
+      });
       if (!res.headersSent) {
         res.status(500).json({
           error: 'Internal server error',
@@ -262,17 +343,27 @@ app.post('/submit', (req, res) => {
     } finally {
       if (req.files) {
         for (const file of req.files) {
-          await fs.remove(file.path).catch(console.error);
+          await fs.remove(file.path).catch(err =>
+            logger.error('Error removing uploaded file', {
+              file: file.path,
+              error: err.message,
+            })
+          );
         }
       }
     }
   });
 });
 
-function compileJavaFiles(workingDir, fileNames, exerciseConfig) {
+function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
   return new Promise(resolve => {
     try {
-      console.log(`Compiling student files: ${fileNames.join(', ')}`);
+      logger.info('Starting compilation', {
+        sessionId: sessionId,
+        files: fileNames,
+        workingDir: workingDir,
+        exercise: exerciseConfig?.id,
+      });
 
       let classpath = '.';
       const testsDir = path.join(__dirname, 'tests');
@@ -298,23 +389,48 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig) {
 
             const quotedJarFiles = jarFiles.map(file => `"${file}"`);
             classpath = `.${path.delimiter}${quotedJarFiles.join(path.delimiter)}`;
-            console.log(`Using classpath with JARs: ${classpath}`);
+            logger.debug('Using classpath with JARs', {
+              sessionId: sessionId,
+              classpath: classpath,
+              jarFiles: jarFiles,
+            });
           }
         }
       } catch (jarError) {
-        console.log('Error handling JAR files:', jarError.message);
+        logger.warn('Error handling JAR files during compilation', {
+          sessionId: sessionId,
+          error: jarError.message,
+        });
       }
 
-      const command = `javac -source 8 -target 8 -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
-      console.log(`Compilation command: ${command}`);
+      // Prepare compilation command
+      const command = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
+      logger.debug('Executing compilation command', {
+        sessionId: sessionId,
+        command: command,
+        workingDir: workingDir,
+      });
 
+      // Execute compilation command
       exec(command, { cwd: workingDir }, (error, stdout, stderr) => {
         if (error) {
+          logger.info('Compilation failed', {
+            sessionId: sessionId,
+            error: error.message,
+            stderr: stderr,
+            stdout: stdout,
+            files: fileNames,
+          });
           resolve({
             success: false,
             error: stderr || error.message,
           });
         } else {
+          logger.info('Compilation successful', {
+            sessionId: sessionId,
+            files: fileNames,
+            workingDir: workingDir,
+          });
           resolve({
             success: true,
             output: stdout,
@@ -322,6 +438,13 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig) {
         }
       });
     } catch (err) {
+      logger.error('Error setting up compilation', {
+        sessionId: sessionId,
+        error: err.message,
+        stack: err.stack,
+        workingDir: workingDir,
+        files: fileNames,
+      });
       resolve({
         success: false,
         error: `Error setting up compilation: ${err.message}`,
@@ -330,9 +453,13 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig) {
   });
 }
 
-async function runPublicTests(workingDir, exercise, exerciseConfig) {
+async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
   try {
-    console.log(`Running public tests for exercise: ${exercise}`);
+    logger.info('Starting public tests', {
+      sessionId: sessionId,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
 
     // Build classpath with JAR files
     let classpath = '.';
@@ -346,10 +473,14 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         classpath = `.${path.delimiter}${jarFiles.join(path.delimiter)}`;
       }
     } catch (jarError) {
-      console.log('Error reading JAR files for tests:', jarError.message);
+      logger.warn('Error reading JAR files for tests', {
+        sessionId: sessionId,
+        error: jarError.message,
+        workingDir: workingDir,
+      });
     }
 
-    // Determine test class name
+    // Determine public test class name
     const testClassMapping = {
       caesarchiffre: 'CaesarChiffrePublicTest',
       signalplotter: 'SignalPlotterPublicTest',
@@ -360,8 +491,14 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
       binarytree: 'BinarySearchTreePublicTest',
     };
 
+    // If no public test class name is found, return early
     const testClassName = testClassMapping[exercise];
     if (!testClassName) {
+      logger.warn('No public test class mapping found', {
+        sessionId: sessionId,
+        exercise: exercise,
+        workingDir: workingDir,
+      });
       return {
         success: true,
         status: '✅',
@@ -371,9 +508,15 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
       };
     }
 
-    // Check if test file exists
+    // Check if test file exists otherwise return early
     const testFilePath = path.join(workingDir, `${testClassName}.java`);
     if (!(await fs.pathExists(testFilePath))) {
+      logger.warn('Public Test file not found', {
+        sessionId: sessionId,
+        testClass: testClassName,
+        workingDir: workingDir,
+        exercise: exercise,
+      });
       return {
         success: true,
         status: '✅',
@@ -383,15 +526,28 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
       };
     }
 
-    // Compile test files
-    const compileTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${testClassName}.java"`;
-    console.log(`Test compilation command: ${compileTestCommand}`);
+    // Prepare public test compilation command
+    const compileTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${testClassName}.java"`;
+    logger.debug('Compiling public test files', {
+      sessionId: sessionId,
+      command: compileTestCommand,
+      testClass: testClassName,
+    });
 
+    // Execute public test compilation command
     const testCompilationResult = await execPromise(compileTestCommand, {
       cwd: workingDir,
     });
 
+    // If public test compilation fails, return early
     if (testCompilationResult.error) {
+      logger.info('Public test compilation failed', {
+        sessionId: sessionId,
+        testClass: testClassName,
+        error: testCompilationResult.stderr,
+        stdout: testCompilationResult.stdout,
+        exercise: exercise,
+      });
       return {
         success: false,
         status: '💀',
@@ -402,7 +558,11 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
 
     // Run the public tests
     const runTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${testClassName}`;
-    console.log(`Test execution command: ${runTestCommand}`);
+    logger.debug('Running public tests', {
+      sessionId: sessionId,
+      command: runTestCommand,
+      testClass: testClassName,
+    });
 
     const testResult = await execPromise(runTestCommand, {
       cwd: workingDir,
@@ -411,6 +571,13 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
 
     if (testResult.error && testResult.error.code !== 'timeout') {
       // Tests ran but some failed
+      logger.info('Public tests failed', {
+        sessionId: sessionId,
+        testClass: testClassName,
+        error: testResult.stderr,
+        stdout: testResult.stdout,
+        exercise: exercise,
+      });
       return {
         success: false,
         status: '💀',
@@ -418,6 +585,14 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         details: `Test output:\n${testResult.stdout}\n\nErrors:\n${testResult.stderr}`,
       };
     }
+
+    // Public test passed
+    logger.info('Public tests passed', {
+      sessionId: sessionId,
+      testClass: testClassName,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
 
     return {
       success: true,
@@ -427,7 +602,13 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
         'Dein Code wurde erfolgreich kompiliert und hat alle Tests bestanden! Du kannst ihn so abgeben!',
     };
   } catch (error) {
-    console.error('Error running tests:', error);
+    logger.error('Error running public tests', {
+      sessionId: sessionId,
+      error: error.message,
+      stack: error.stack,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
     return {
       success: false,
       status: '⚠️',
@@ -437,10 +618,14 @@ async function runPublicTests(workingDir, exercise, exerciseConfig) {
   }
 }
 
+async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
 // ToDo: Implement formatting with Helper files
-async function runSecretTests(workingDir, exercise, exerciseConfig) {
   try {
-    console.log(`Running secret tests for exercise: ${exercise}`);
+    logger.info('Starting secret tests', {
+      sessionId: sessionId,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
 
     // Build classpath with JAR files
     let classpath = '.';
@@ -454,10 +639,10 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
         classpath = `.${path.delimiter}${jarFiles.join(path.delimiter)}`;
       }
     } catch (jarError) {
-      console.log(
-        'Error reading JAR files for secret tests:',
-        jarError.message
-      );
+      logger.warn('Error reading JAR files for secret tests', {
+        error: jarError.message,
+        workingDir: workingDir,
+      });
     }
 
     // Determine secret test class name
@@ -496,26 +681,43 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
     }
 
     // Compile secret test files
-    const compileSecretTestCommand = `javac -source 8 -target 8 -cp ${classpath} "${secretTestClassName}.java"`;
-    console.log(`Secret test compilation command: ${compileSecretTestCommand}`);
+    const compileSecretTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${secretTestClassName}.java"`;
+    logger.debug('Compiling secret test files', {
+      command: compileSecretTestCommand,
+      testClass: secretTestClassName,
+      exercise: exercise,
+    });
 
     const secretTestCompilationResult = await execPromise(
       compileSecretTestCommand,
       { cwd: workingDir }
     );
 
+    // If secret test compilation fails, return early
     if (secretTestCompilationResult.error) {
+      logger.info('Secret test compilation failed', {
+        sessionId: sessionId,
+        testClass: secretTestClassName,
+        error: secretTestCompilationResult.stderr,
+        stdout: secretTestCompilationResult.stdout,
+        exercise: exercise,
+      });
       return {
         success: false,
         status: '💀',
-        message: 'Zusätzliche Testkompilierung fehlgeschlagen',
-        details: `Zusätzliche Testkompilierungsfehler:\n${secretTestCompilationResult.stderr}`,
+        message: 'Zusätzliche Testkompilierung fehlgeschlagen.',
+        details: `Dies bedeutet normalerweise:\n- Fehlende erforderliche Methoden\n- Falsche Methodensignaturen\n- Falsche Klassen-/Methodennamen\n\nZusätzliche Testkompilierungsfehler:\n${secretTestCompilationResult.stderr}`,
       };
     }
 
     // Run the secret tests
     const runSecretTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${secretTestClassName}`;
-    console.log(`Secret test execution command: ${runSecretTestCommand}`);
+    logger.debug('Running secret tests', {
+      sessionId: sessionId,
+      command: runSecretTestCommand,
+      testClass: secretTestClassName,
+      exercise: exercise,
+    });
 
     const secretTestResult = await execPromise(runSecretTestCommand, {
       cwd: workingDir,
@@ -524,22 +726,44 @@ async function runSecretTests(workingDir, exercise, exerciseConfig) {
 
     if (secretTestResult.error && secretTestResult.error.code !== 'timeout') {
       // Secret tests ran but some failed
+      logger.info('Secret tests failed', {
+        sessionId: sessionId,
+        testClass: secretTestClassName,
+        error: secretTestResult.stderr,
+        stdout: secretTestResult.stdout,
+        exercise: exercise,
+      });
       return {
         success: false,
         status: '💀',
-        message: 'Zusätzliche Tests sind fehlgeschlagen',
-        details: `Zusätzliche Testausgabe:\n${secretTestResult.stdout}\n\nFehler:\n${secretTestResult.stderr}`,
+        message: 'Zusätzliche Tests sind fehlgeschlagen.',
+        details: `Du kannst die Dateien so abgeben, aber sie beinhalten noch Fehler.\nZusätzliche Testausgabe:\n${secretTestResult.stdout}\n\nFehler:\n${secretTestResult.stderr}`,
       };
     }
+
+    // Secret tests passed
+    logger.info('Secret tests passed', {
+      sessionId: sessionId,
+      testClass: secretTestClassName,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
 
     return {
       success: true,
       status: '✅',
       message: 'Alle zusätzlichen Tests bestanden!',
-      details: 'Dein Code hat alle zusätzlichen Tests erfolgreich bestanden!',
+      details:
+        'Dein Code hat alle zusätzlichen Tests erfolgreich bestanden! Das sollten viele Punkte werden!',
     };
   } catch (error) {
-    console.error('Error running secret tests:', error);
+    logger.error('Error running secret tests', {
+      sessionId: sessionId,
+      error: error.message,
+      stack: error.stack,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
     return {
       success: false,
       status: '⚠️',
@@ -564,16 +788,23 @@ function execPromise(command, options) {
 async function cleanupTempDir(tempDir) {
   try {
     await fs.remove(tempDir);
+    logger.debug('Cleaned up temp directory', { tempDir: tempDir });
   } catch (error) {
     if (error.code === 'EBUSY' || error.code === 'ENOTEMPTY') {
-      console.log('Files locked, attempting cleanup with delay...');
+      logger.debug('Files locked, attempting cleanup with delay', {
+        tempDir: tempDir,
+      });
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       try {
         await fs.remove(tempDir);
+        logger.debug('Cleanup successful after delay', { tempDir: tempDir });
       } catch (retryError) {
-        console.warn('Could not clean up temp directory:', retryError.message);
+        logger.warn('Could not clean up temp directory after retry', {
+          tempDir: tempDir,
+          error: retryError.message,
+        });
         setTimeout(async () => {
           try {
             await fs.remove(tempDir);
@@ -769,7 +1000,12 @@ app.get('/exercises', (req, res) => {
 (async () => {
   await checkJavaVersion();
   app.listen(PORT, () => {
+    logger.info('AuD Tester Website started', {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      javaVersion: 'Java 8 (enforced with -source 8 -target 8)',
+      logLevel: logger.level,
+    });
     console.log(`AuD Tester Website running on http://localhost:${PORT}`);
-    console.log('Enforcing Java 8 language level (-source 8 -target 8)');
   });
 })();
