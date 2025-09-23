@@ -619,6 +619,7 @@ async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
 }
 
 async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
+// ToDo: Implement formatting with Helper files
   try {
     logger.info('Starting secret tests', {
       sessionId: sessionId,
