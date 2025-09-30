@@ -296,6 +296,35 @@ small {
   font-style: italic;
 }
 
+.points-info {
+  margin: 15px 0;
+  padding: 12px;
+  background: #ecfdf5;
+  border-radius: 6px;
+  border-left: 3px solid #10b981;
+  font-size: 14px;
+  color: #059669;
+}
+
+.points-info strong {
+  color: #047857;
+  font-weight: 600;
+}
+
+.docker-info {
+  margin: 10px 0;
+  padding: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
+.docker-info strong {
+  color: #475569;
+}
+
 /* Secret tests styling */
 .secret-tests {
   position: relative;
