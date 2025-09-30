@@ -514,7 +514,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         status: '💀',
         message: 'Überprüfung fehlgeschlagen',
         details:
-          'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut.',
+          'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut und überprüfe Deinen Code.',
       };
     }
 
@@ -561,7 +561,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         status: '⚠️',
         message:
           'Es gab ein Problem bei der Überprüfung. Details konnten nicht gelesen werden.',
-        details: 'Tests wurden ausgeführt, aber keine Ergebnisse gefunden.',
+        details:
+          'Tests wurden ausgeführt, aber keine Ergebnisse gefunden. Bitte überprüfe Deinen Code.',
       };
     }
 
@@ -579,7 +580,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
 
     // Format feedback similar to Python script
     const points = resultsData.points || '0';
-    const instantStatus = resultsData.instant_status || '💀';
+    let instantStatus = resultsData.instant_status || '💀';
     let feedbackText = resultsData.protected_feedback_text || '';
 
     // Handle compile errors specifically
@@ -592,7 +593,9 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     const cleanFeedbackText = feedbackText.replace(/,/g, '');
 
     // Determine success based on status
-    const isSuccess = instantStatus === '✔' || instantStatus.includes('✔');
+    let isSuccess = instantStatus === '✔' || instantStatus.includes('✔');
+
+    if (instantStatus === '✔') instantStatus = '✅';
 
     return {
       success: isSuccess,
@@ -617,7 +620,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       success: false,
       status: '⚠️',
       message: 'Es gab ein Problem bei der Überprüfung',
-      details: `An error occurred while running tests: ${error.message}`,
+      details: `Es ist ein Fehler aufgetreten. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum: ${error.message}`,
     };
   }
 }
