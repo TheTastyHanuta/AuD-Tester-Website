@@ -12,9 +12,9 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   min-height: 100vh;
-  color: #333;
+  color: #e2e8f0;
   line-height: 1.6;
 }
 
@@ -30,28 +30,29 @@ body {
 header {
   text-align: center;
   margin-bottom: 40px;
-  color: white;
+  color: #f8fafc;
 }
 
 header h1 {
   font-size: 2.5em;
   font-weight: 700;
   margin-bottom: 10px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 header p {
   font-size: 1.1em;
-  opacity: 0.9;
+  opacity: 0.85;
   font-weight: 300;
+  color: #cbd5e1;
 }
 
 main {
   flex: 1;
-  background: white;
+  background: #2d3748;
   border-radius: 16px;
   padding: 40px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
 .upload-section {
@@ -66,23 +67,24 @@ label {
   display: block;
   margin-bottom: 8px;
   font-weight: 500;
-  color: #374151;
+  color: #e2e8f0;
 }
 
 select {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #4a5568;
   border-radius: 8px;
   font-size: 16px;
-  background: white;
+  background: #1a202c;
+  color: #e2e8f0;
   transition: border-color 0.3s ease;
 }
 
 select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #4c51bf;
+  box-shadow: 0 0 0 3px rgba(76, 81, 191, 0.2);
 }
 
 .file-input-wrapper {
@@ -91,7 +93,7 @@ select:focus {
   width: 100%;
 }
 
-#javaFile {
+#javaFiles {
   position: absolute;
   opacity: 0;
   width: 100%;
@@ -103,22 +105,22 @@ select:focus {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border: 2px dashed #d1d5db;
+  border: 2px dashed #4a5568;
   border-radius: 8px;
-  background: #f9fafb;
+  background: #1a202c;
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .file-input-display:hover {
-  border-color: #667eea;
-  background: #f0f4ff;
+  border-color: #4c51bf;
+  background: #2d3748;
 }
 
 .file-input-display.has-file {
   border-style: solid;
-  border-color: #10b981;
-  background: #f0fdf4;
+  border-color: #38a169;
+  background: #1a2e1a;
 }
 
 .file-icon {
@@ -127,39 +129,39 @@ select:focus {
 }
 
 .file-text {
-  color: #6b7280;
+  color: #a0aec0;
   font-weight: 400;
 }
 
 .file-input-display.has-file .file-text {
-  color: #059669;
+  color: #48bb78;
   font-weight: 500;
 }
 
 small {
   display: block;
   margin-top: 5px;
-  color: #6b7280;
+  color: #a0aec0;
   font-size: 14px;
 }
 
 .file-list {
   margin-top: 10px;
   padding: 12px;
-  background: #f8fafc;
+  background: #1a202c;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #4a5568;
 }
 
 .file-list-title {
   font-weight: 500;
-  color: #374151;
+  color: #e2e8f0;
   margin-bottom: 8px;
   font-size: 14px;
 }
 
 .file-item {
-  color: #6b7280;
+  color: #a0aec0;
   font-size: 14px;
   margin-bottom: 4px;
   font-family: 'Monaco', 'Consolas', monospace;
@@ -172,7 +174,7 @@ small {
 .submit-btn {
   width: 100%;
   padding: 16px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4c51bf 0%, #553c9a 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -186,7 +188,7 @@ small {
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10px 20px rgba(76, 81, 191, 0.4);
 }
 
 .submit-btn:disabled {
@@ -212,12 +214,12 @@ small {
 .results-section {
   margin-top: 30px;
   padding-top: 30px;
-  border-top: 2px solid #e5e7eb;
+  border-top: 2px solid #4a5568;
 }
 
 .results-section h2 {
   margin-bottom: 20px;
-  color: #374151;
+  color: #e2e8f0;
   font-weight: 600;
 }
 
@@ -229,18 +231,18 @@ small {
 }
 
 .result-success {
-  background: #f0fdf4;
-  border-left-color: #10b981;
+  background: #1a2e1a;
+  border-left-color: #38a169;
 }
 
 .result-error {
-  background: #fef2f2;
-  border-left-color: #ef4444;
+  background: #2d1b1b;
+  border-left-color: #e53e3e;
 }
 
 .result-warning {
-  background: #fffbeb;
-  border-left-color: #f59e0b;
+  background: #2d2416;
+  border-left-color: #dd6b20;
 }
 
 .result-status {
@@ -251,26 +253,27 @@ small {
 .result-message {
   font-weight: 600;
   margin-bottom: 10px;
-  color: #374151;
+  color: #e2e8f0;
 }
 
 .result-details {
-  background: #f8fafc;
+  background: #1a202c;
   padding: 15px;
   border-radius: 6px;
   font-family: 'Monaco', 'Consolas', monospace;
   font-size: 14px;
   white-space: pre-wrap;
   overflow-x: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #4a5568;
   max-height: 300px;
   overflow-y: auto;
+  color: #cbd5e1;
 }
 
 .result-points {
   margin-top: 15px;
   padding: 10px 15px;
-  background: #3b82f6;
+  background: #2b6cb0;
   color: white;
   border-radius: 6px;
   font-weight: 600;
@@ -280,49 +283,49 @@ small {
 .deadline-info {
   margin: 15px 0;
   padding: 12px;
-  background: #f8fafc;
+  background: #1a202c;
   border-radius: 6px;
-  border-left: 3px solid #6b7280;
+  border-left: 3px solid #718096;
   font-size: 14px;
-  color: #4b5563;
+  color: #a0aec0;
 }
 
 .deadline-info strong {
-  color: #374151;
+  color: #e2e8f0;
 }
 
 .deadline-info em {
-  color: #6b7280;
+  color: #718096;
   font-style: italic;
 }
 
 .points-info {
   margin: 15px 0;
   padding: 12px;
-  background: #ecfdf5;
+  background: #1a2e1a;
   border-radius: 6px;
-  border-left: 3px solid #10b981;
+  border-left: 3px solid #38a169;
   font-size: 14px;
-  color: #059669;
+  color: #48bb78;
 }
 
 .points-info strong {
-  color: #047857;
+  color: #38a169;
   font-weight: 600;
 }
 
 .docker-info {
   margin: 10px 0;
   padding: 8px;
-  background: #f1f5f9;
+  background: #1a202c;
   border-radius: 4px;
   font-size: 12px;
-  color: #64748b;
+  color: #a0aec0;
   text-align: center;
 }
 
 .docker-info strong {
-  color: #475569;
+  color: #cbd5e1;
 }
 
 /* Secret tests styling */
@@ -347,7 +350,7 @@ small {
 footer {
   text-align: center;
   margin-top: 40px;
-  color: white;
+  color: #cbd5e1;
   opacity: 0.8;
   font-size: 14px;
 }
@@ -372,8 +375,8 @@ footer {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #667eea;
+  border: 3px solid #4a5568;
+  border-top: 3px solid #4c51bf;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-left: 10px;
