@@ -13,18 +13,29 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 - **Temporary File Management**: Secure handling and cleanup of uploaded files
 - **Cross-platform Compatibility**: Works on Windows, macOS, and Linux
 
-## Development
+## Usage and Development
 
-### Requirements for local development
+### Requirements
 
 - Node.js (version 14 or higher)
 - Java Development Kit (JDK 8 or higher)
 - npm or yarn package manager
+- Docker (for running JUnit tests in a container)
 
 ### Installation
 
 1. Clone or download the project to your local machine
+
+   ```bash
+   git clone https://github.com/TheTastyHanuta/AuD-Tester-Website
+   ```
+
 2. Navigate to the project directory
+
+   ```bash
+   cd AuD-Tester-Website
+   ```
+
 3. Install dependencies:
 
    ```bash
@@ -36,6 +47,52 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    ```bash
    javac -version
    ```
+
+### Create Docker Images for each exercise (if tests are defined)
+
+For this you will need to have the files required to build the docker images. You can find all the files from StudOn in this repository: https://github.com/TheTastyHanuta/AuDoscore_audmt
+
+When you have the files, you will need to build the docker images for each exercise that has tests defined. The Dockerfile requires a specific structure, so make sure to follow it.
+
+```
+working_directory/
+├── Dockerfile
+├── files/
+│   ├── cleanroom.zip
+│   └── audoscore.zip
+├── student/
+└── result/
+```
+
+To build the docker image, navigate to the working directory and run:
+
+```bash
+docker build -t aufgabeX-NAME .
+```
+
+### Starting the Server
+
+```bash
+node server.js
+```
+
+The application will start on `http://localhost:3000` by default.
+
+#### Starting in Production Mode
+
+To start the application in production mode, use the following command:
+
+```bash
+npm run start:prod
+```
+
+#### Starting with hot reloading (currently broken idk why)
+
+For development, you can use hot reloading to automatically restart the server when file changes are detected. Use the following command:
+
+```bash
+npm run dev
+```
 
 ### Code Formatting
 
@@ -84,38 +141,6 @@ Example exercise configuration:
 }
 ```
 
-### Test Files and Dependencies
-
-- Place JAR dependencies in the `tests/` directory
-- Helper files and test classes can be organized in subdirectories under `tests/`
-- The system automatically includes JAR files in the compilation classpath
-
-## Usage
-
-### Starting the Server
-
-```bash
-node server.js
-```
-
-The application will start on `http://localhost:3000` by default.
-
-#### Starting in Production Mode
-
-To start the application in production mode, use the following command:
-
-```bash
-npm run start:prod
-```
-
-#### Starting with hot reloading
-
-For development, you can use hot reloading to automatically restart the server when file changes are detected. Use the following command:
-
-```bash
-npm run dev
-```
-
 ## Project Structure
 
 ```
@@ -138,37 +163,9 @@ AuD Tester Website/
 2. **Temporary Storage**: Files are stored in a temporary directory for processing
 3. **Classpath Management**: JAR dependencies are automatically included in the classpath
 4. **Compilation**: The system attempts to compile all uploaded files using javac
-5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results
+5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results via a docker container
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
-
-## Contributing
-
-### Adding New Features
-
-Contributions are welcome! Please follow these guidelines:
-
-1. **Code Style**: Maintain consistent formatting and naming conventions (see [Code Formatting](#code-formatting))
-2. **Testing**: Test your changes with multiple file types and scenarios
-3. **Documentation**: Update relevant documentation for new features
-
-#### Submitting Changes
-
-1. Create a descriptive commit message
-2. Test your changes thoroughly
-3. Update documentation if needed
-4. Submit a pull request with a clear description of changes
-
-### Reporting Issues
-
-When reporting issues, please include:
-
-- Operating system and version
-- Node.js version
-- Java version
-- Steps to reproduce the issue
-- Expected vs actual behavior
-- Any error messages or console output
 
 ## Deployment
 
@@ -201,6 +198,12 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
 
    ```bash
    sudo apt install git -y
+   ```
+
+5. **Install Docker**:
+
+   ```bash
+   sudo apt install docker.io -y
    ```
 
 #### Deploy Application
@@ -261,6 +264,34 @@ pm2 save
    npm install
    pm2 restart aud-tester
    ```
+
+## Contributing
+
+### Adding New Features
+
+Contributions are welcome! Please follow these guidelines:
+
+1. **Code Style**: Maintain consistent formatting and naming conventions (see [Code Formatting](#code-formatting))
+2. **Testing**: Test your changes with multiple file types and scenarios
+3. **Documentation**: Update relevant documentation for new features
+
+#### Submitting Changes
+
+1. Create a descriptive commit message
+2. Test your changes thoroughly
+3. Update documentation if needed
+4. Submit a pull request with a clear description of changes
+
+### Reporting Issues
+
+When reporting issues, please include:
+
+- Operating system and version
+- Node.js version
+- Java version
+- Steps to reproduce the issue
+- Expected vs actual behavior
+- Any error messages or console output
 
 ## License
 
