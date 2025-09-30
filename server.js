@@ -184,123 +184,96 @@ app.post('/submit', (req, res) => {
           });
         }
 
-        if (exerciseConfig.hasTests) {
-          const testDirMapping = {
-            caesarchiffre: 'CaesarChiffreTests',
-            signalplotter: 'SignalPlotterTests',
-            color: 'ColorTests',
-            snakegame: 'SnakeTests',
-            sortedset: 'SortedSetTests',
-            contactdb: 'ContactDatabaseTests',
-            binarytree: 'BinarySearchTreeTests',
-          };
+        // Main testing will be handled below
 
-          const testDirName = testDirMapping[exercise];
-          if (testDirName) {
-            const testDir = path.join('tests', testDirName);
-            const testerDir = path.join('tests', 'tester');
-
-            if (await fs.pathExists(testDir)) {
-              await fs.copy(testDir, tempDir);
-            }
-
-            if (await fs.pathExists(testerDir)) {
-              await fs.copy(testerDir, path.join(tempDir, 'tester'));
-            }
-          }
-        }
-
-        /* Compile submission Java files
-        This will fail if the code does use non Java 8 features and has syntax errors.
-        */
-        const compilationResult = await compileJavaFiles(
-          tempDir,
-          uploadedFiles.map(f => f.filename),
-          exerciseConfig,
-          sessionId
-        );
-        // If submission compilation fails return early
-        if (!compilationResult.success) {
-          return res.json({
-            success: false,
-            status: '💀',
-            message: 'Compilation failed',
-            details: compilationResult.error,
-          });
-        }
-
-        /* If exercise has tests, try to compile and run public tests
-        These will fail if methods are not named correctly or if the code does not follow the expected structure.
+        /* If exercise has tests run the correct docker image for the exercise
+        This will return a status if the submission passed the tests or not.
         */
         if (exerciseConfig.hasTests) {
-          const testResult = await runPublicTests(
+          // Run Docker tests for exercises with test configuration
+          const dockerTestResult = await runDockerTests(
             tempDir,
             exercise,
             exerciseConfig,
             sessionId
           );
-          // If public tests compilation fails, return early
-          if (!testResult.success) {
+
+          logger.info('Docker test execution completed', {
+            sessionId: sessionId,
+            exercise: exercise,
+            dockerImage: dockerTestResult.dockerImage,
+            success: dockerTestResult.success,
+            status: dockerTestResult.status,
+            points: dockerTestResult.points,
+          });
+
+          // If deadline is passed or submission had no success, return with detailed feedback
+          if (
+            dockerTestResult.success === false ||
+            new Date() > new Date(exerciseConfig.deadline)
+          ) {
             return res.json({
-              success: false,
-              status: testResult.status,
-              message: testResult.message,
-              details: testResult.details,
+              success: dockerTestResult.success,
+              status: dockerTestResult.status,
+              message: dockerTestResult.message,
+              details: dockerTestResult.details,
               deadline: exerciseConfig.deadline,
+              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+            });
+          } else {
+            // If deadline is not passed and submission was successful, return without detailed feedback
+            return res.json({
+              success: dockerTestResult.success,
+              status: dockerTestResult.status,
+              message: dockerTestResult.message,
+              deadline: exerciseConfig.deadline,
+              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
             });
           }
-
-          // Check if deadline has passed and is enabled in config --> run secret tests if available
-          const deadlinePassed = new Date() > new Date(exerciseConfig.deadline);
-          let secretTestResult = null;
-
-          if (deadlinePassed && process.env.SHOW_SECRET_TESTS === 'true') {
-            secretTestResult = await runSecretTests(
-              tempDir,
-              exercise,
-              exerciseConfig,
-              sessionId
-            );
+        } else {
+          // If no tests, just try to compile the code
+          /* Compile submission Java files
+          This will fail if the code does use non Java 8 features and has syntax errors.
+          */
+          const compilationResult = await compileJavaFiles(
+            tempDir,
+            uploadedFiles.map(f => f.filename),
+            exerciseConfig,
+            sessionId
+          );
+          // If submission compilation fails return early
+          if (!compilationResult.success) {
+            logger.info('Compilation failed', {
+              sessionId: sessionId,
+              exercise: exercise,
+              error: compilationResult.error,
+            });
+            return res.json({
+              success: false,
+              status: '💀',
+              message:
+                'Compile Error. Bitte überorprüfe deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen.)',
+              details: compilationResult.error,
+            });
+          } else {
+            // If compilation is successful, return success message
+            logger.info('Compilation successful without tests', {
+              sessionId: sessionId,
+              exercise: exercise,
+            });
+            return res.json({
+              success: true,
+              status: '✅',
+              message: 'Erfolgreich kompiliert',
+              details:
+                'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
+              deadline: exerciseConfig.deadline,
+              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+            });
           }
-
-          // Prepare response with public test results and secret test results if deadline passed
-          const response = {
-            success: true,
-            status: testResult.status,
-            message: testResult.message,
-            details: testResult.details,
-            deadline: exerciseConfig.deadline,
-            deadlinePassed: deadlinePassed,
-          };
-
-          // Add secret test results if deadline has passed
-          if (
-            deadlinePassed &&
-            secretTestResult &&
-            process.env.SHOW_SECRET_TESTS === 'true'
-          ) {
-            response.secretTests = {
-              success: secretTestResult.success,
-              status: secretTestResult.status,
-              message: secretTestResult.message,
-              details: secretTestResult.details,
-            };
-          }
-
-          return res.json(response);
         }
-
-        // If no tests at all, just return compilation success
-        res.json({
-          success: true,
-          status: '✅',
-          message: 'Compilation successful',
-          details:
-            'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
-          deadline: exerciseConfig.deadline,
-          deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
-        });
       } catch (processError) {
+        // If any error occurs during processing, log it and return a 500 error
         logger.error('Error during submission processing', {
           sessionId: sessionId,
           error: processError.message,
@@ -326,6 +299,7 @@ app.post('/submit', (req, res) => {
         }
       }
     } catch (error) {
+      // Catch any unexpected errors
       logger.error('Error processing submission', {
         sessionId: req.session?.id || 'no-session',
         error: error.message,
@@ -453,326 +427,6 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
   });
 }
 
-async function runPublicTests(workingDir, exercise, exerciseConfig, sessionId) {
-  try {
-    logger.info('Starting public tests', {
-      sessionId: sessionId,
-      exercise: exercise,
-      workingDir: workingDir,
-    });
-
-    // Build classpath with JAR files
-    let classpath = '.';
-    const jarFiles = [];
-
-    try {
-      const files = await fs.readdir(workingDir);
-      const jars = files.filter(file => file.endsWith('.jar'));
-      if (jars.length > 0) {
-        jarFiles.push(...jars.map(jar => `"${jar}"`));
-        classpath = `.${path.delimiter}${jarFiles.join(path.delimiter)}`;
-      }
-    } catch (jarError) {
-      logger.warn('Error reading JAR files for tests', {
-        sessionId: sessionId,
-        error: jarError.message,
-        workingDir: workingDir,
-      });
-    }
-
-    // Determine public test class name
-    const testClassMapping = {
-      caesarchiffre: 'CaesarChiffrePublicTest',
-      signalplotter: 'SignalPlotterPublicTest',
-      color: 'ColorPublicTest',
-      snakegame: 'SnakePublicTest',
-      sortedset: 'SortedSetPublicTest',
-      contactdb: 'ContactDatabasePublicTest',
-      binarytree: 'BinarySearchTreePublicTest',
-    };
-
-    // If no public test class name is found, return early
-    const testClassName = testClassMapping[exercise];
-    if (!testClassName) {
-      logger.warn('No public test class mapping found', {
-        sessionId: sessionId,
-        exercise: exercise,
-        workingDir: workingDir,
-      });
-      return {
-        success: true,
-        status: '✅',
-        message: 'Compilation successful',
-        details:
-          'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
-      };
-    }
-
-    // Check if test file exists otherwise return early
-    const testFilePath = path.join(workingDir, `${testClassName}.java`);
-    if (!(await fs.pathExists(testFilePath))) {
-      logger.warn('Public Test file not found', {
-        sessionId: sessionId,
-        testClass: testClassName,
-        workingDir: workingDir,
-        exercise: exercise,
-      });
-      return {
-        success: true,
-        status: '✅',
-        message: 'Compilation successful',
-        details:
-          'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
-      };
-    }
-
-    // Prepare public test compilation command
-    const compileTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${testClassName}.java"`;
-    logger.debug('Compiling public test files', {
-      sessionId: sessionId,
-      command: compileTestCommand,
-      testClass: testClassName,
-    });
-
-    // Execute public test compilation command
-    const testCompilationResult = await execPromise(compileTestCommand, {
-      cwd: workingDir,
-    });
-
-    // If public test compilation fails, return early
-    if (testCompilationResult.error) {
-      logger.info('Public test compilation failed', {
-        sessionId: sessionId,
-        testClass: testClassName,
-        error: testCompilationResult.stderr,
-        stdout: testCompilationResult.stdout,
-        exercise: exercise,
-      });
-      return {
-        success: false,
-        status: '💀',
-        message: 'Test compilation failed',
-        details: `Dein Code wurde erfolgreich kompiliert, aber die Tests konnten nicht kompiliert werden. Dies bedeutet normalerweise:\n- Fehlende erforderliche Methoden\n- Falsche Methodensignaturen\n- Falsche Klassen-/Methodennamen\n\nTestkompilierungsfehler:\n${testCompilationResult.stderr}`,
-      };
-    }
-
-    // Run the public tests
-    const runTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${testClassName}`;
-    logger.debug('Running public tests', {
-      sessionId: sessionId,
-      command: runTestCommand,
-      testClass: testClassName,
-    });
-
-    const testResult = await execPromise(runTestCommand, {
-      cwd: workingDir,
-      timeout: 30000, // 30 second timeout
-    });
-
-    if (testResult.error && testResult.error.code !== 'timeout') {
-      // Tests ran but some failed
-      logger.info('Public tests failed', {
-        sessionId: sessionId,
-        testClass: testClassName,
-        error: testResult.stderr,
-        stdout: testResult.stdout,
-        exercise: exercise,
-      });
-      return {
-        success: false,
-        status: '💀',
-        message: 'Tests failed',
-        details: `Test output:\n${testResult.stdout}\n\nErrors:\n${testResult.stderr}`,
-      };
-    }
-
-    // Public test passed
-    logger.info('Public tests passed', {
-      sessionId: sessionId,
-      testClass: testClassName,
-      exercise: exercise,
-      workingDir: workingDir,
-    });
-
-    return {
-      success: true,
-      status: '✅',
-      message: 'All tests passed!',
-      details:
-        'Dein Code wurde erfolgreich kompiliert und hat alle Tests bestanden! Du kannst ihn so abgeben!',
-    };
-  } catch (error) {
-    logger.error('Error running public tests', {
-      sessionId: sessionId,
-      error: error.message,
-      stack: error.stack,
-      exercise: exercise,
-      workingDir: workingDir,
-    });
-    return {
-      success: false,
-      status: '⚠️',
-      message: 'Test execution error',
-      details: `An error occurred while running tests: ${error.message}`,
-    };
-  }
-}
-
-async function runSecretTests(workingDir, exercise, exerciseConfig, sessionId) {
-// ToDo: Implement formatting with Helper files
-  try {
-    logger.info('Starting secret tests', {
-      sessionId: sessionId,
-      exercise: exercise,
-      workingDir: workingDir,
-    });
-
-    // Build classpath with JAR files
-    let classpath = '.';
-    const jarFiles = [];
-
-    try {
-      const files = await fs.readdir(workingDir);
-      const jars = files.filter(file => file.endsWith('.jar'));
-      if (jars.length > 0) {
-        jarFiles.push(...jars.map(jar => `"${jar}"`));
-        classpath = `.${path.delimiter}${jarFiles.join(path.delimiter)}`;
-      }
-    } catch (jarError) {
-      logger.warn('Error reading JAR files for secret tests', {
-        error: jarError.message,
-        workingDir: workingDir,
-      });
-    }
-
-    // Determine secret test class name
-    const secretTestClassMapping = {
-      caesarchiffre: 'CaesarChiffreSecretTest',
-      signalplotter: 'SignalPlotterSecretTest',
-      color: 'ColorSecretTest',
-      snakegame: 'SnakeSecretTest',
-      sortedset: 'SortedSetSecretTest',
-      contactdb: 'ContactDatabaseSecretTest',
-      binarytree: 'BinarySearchTreeSecretTest',
-    };
-
-    const secretTestClassName = secretTestClassMapping[exercise];
-    if (!secretTestClassName) {
-      return {
-        success: false,
-        status: '⚠️',
-        message: 'No additional tests available',
-        details: 'No additional tests are configured for this exercise.',
-      };
-    }
-
-    // Check if secret test file exists
-    const secretTestFilePath = path.join(
-      workingDir,
-      `${secretTestClassName}.java`
-    );
-    if (!(await fs.pathExists(secretTestFilePath))) {
-      return {
-        success: false,
-        status: '⚠️',
-        message: 'Additional test file not found',
-        details: `Additional test file ${secretTestClassName}.java not found.`,
-      };
-    }
-
-    // Compile secret test files
-    const compileSecretTestCommand = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} "${secretTestClassName}.java"`;
-    logger.debug('Compiling secret test files', {
-      command: compileSecretTestCommand,
-      testClass: secretTestClassName,
-      exercise: exercise,
-    });
-
-    const secretTestCompilationResult = await execPromise(
-      compileSecretTestCommand,
-      { cwd: workingDir }
-    );
-
-    // If secret test compilation fails, return early
-    if (secretTestCompilationResult.error) {
-      logger.info('Secret test compilation failed', {
-        sessionId: sessionId,
-        testClass: secretTestClassName,
-        error: secretTestCompilationResult.stderr,
-        stdout: secretTestCompilationResult.stdout,
-        exercise: exercise,
-      });
-      return {
-        success: false,
-        status: '💀',
-        message: 'Zusätzliche Testkompilierung fehlgeschlagen.',
-        details: `Dies bedeutet normalerweise:\n- Fehlende erforderliche Methoden\n- Falsche Methodensignaturen\n- Falsche Klassen-/Methodennamen\n\nZusätzliche Testkompilierungsfehler:\n${secretTestCompilationResult.stderr}`,
-      };
-    }
-
-    // Run the secret tests
-    const runSecretTestCommand = `java -cp ${classpath} org.junit.runner.JUnitCore ${secretTestClassName}`;
-    logger.debug('Running secret tests', {
-      sessionId: sessionId,
-      command: runSecretTestCommand,
-      testClass: secretTestClassName,
-      exercise: exercise,
-    });
-
-    const secretTestResult = await execPromise(runSecretTestCommand, {
-      cwd: workingDir,
-      timeout: 30000, // 30 second timeout
-    });
-
-    if (secretTestResult.error && secretTestResult.error.code !== 'timeout') {
-      // Secret tests ran but some failed
-      logger.info('Secret tests failed', {
-        sessionId: sessionId,
-        testClass: secretTestClassName,
-        error: secretTestResult.stderr,
-        stdout: secretTestResult.stdout,
-        exercise: exercise,
-      });
-      return {
-        success: false,
-        status: '💀',
-        message: 'Zusätzliche Tests sind fehlgeschlagen.',
-        details: `Du kannst die Dateien so abgeben, aber sie beinhalten noch Fehler.\nZusätzliche Testausgabe:\n${secretTestResult.stdout}\n\nFehler:\n${secretTestResult.stderr}`,
-      };
-    }
-
-    // Secret tests passed
-    logger.info('Secret tests passed', {
-      sessionId: sessionId,
-      testClass: secretTestClassName,
-      exercise: exercise,
-      workingDir: workingDir,
-    });
-
-    return {
-      success: true,
-      status: '✅',
-      message: 'Alle zusätzlichen Tests bestanden!',
-      details:
-        'Dein Code hat alle zusätzlichen Tests erfolgreich bestanden! Das sollten viele Punkte werden!',
-    };
-  } catch (error) {
-    logger.error('Error running secret tests', {
-      sessionId: sessionId,
-      error: error.message,
-      stack: error.stack,
-      exercise: exercise,
-      workingDir: workingDir,
-    });
-    return {
-      success: false,
-      status: '⚠️',
-      message: 'Additional test execution error',
-      details: `An error occurred while running additional tests: ${error.message}`,
-    };
-  }
-}
-
 function execPromise(command, options) {
   return new Promise(resolve => {
     exec(command, options, (error, stdout, stderr) => {
@@ -783,6 +437,189 @@ function execPromise(command, options) {
       });
     });
   });
+}
+
+async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
+  try {
+    logger.info('Starting Docker tests', {
+      sessionId: sessionId,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
+
+    // Docker image mapping
+    const testDockerImageMapping = {
+      arrays: 'aufgabe2-arrays',
+      caesarchiffre: 'aufgabe3-caesarchiffre',
+      signalplotter: 'aufgabe3-signalplotter',
+      color: 'aufgabe4-color',
+      snakegame: 'aufgabe5-snake',
+      sortedset: 'aufgabe7-sortedset',
+      contactdb: 'aufgabe8-contactdatabase',
+      binarytree: 'aufgabe9-binarysearchtree',
+    };
+
+    const dockerImage = testDockerImageMapping[exercise];
+    if (!dockerImage) {
+      logger.warn('No Docker image configured for exercise', {
+        sessionId: sessionId,
+        exercise: exercise,
+      });
+      return {
+        success: false,
+        status: '⚠️',
+        message: 'Test configuration error',
+        details: 'Es wurde kein Test für diese Übung konfiguriert.',
+      };
+    }
+
+    // Create result directory for Docker output
+    const resultDir = path.join(workingDir, 'result');
+    await fs.ensureDir(resultDir);
+
+    // Docker command similar to the Python script
+    const dockerCommand = [
+      'docker',
+      'run',
+      '--rm',
+      '-v',
+      `${path.resolve(workingDir)}:/user`,
+      '-v',
+      `${path.resolve(resultDir)}:/result`,
+      dockerImage,
+    ];
+
+    logger.debug('Executing Docker command', {
+      sessionId: sessionId,
+      command: dockerCommand.join(' '),
+      dockerImage: dockerImage,
+      workingDir: workingDir,
+      resultDir: resultDir,
+    });
+
+    // Execute Docker command with timeout
+    const dockerResult = await execPromise(dockerCommand.join(' '), {
+      cwd: workingDir,
+      timeout: 120000, // 2 minute timeout for Docker tests
+    });
+
+    // If the execPromise failed to return a result, handle it
+    if (!dockerResult) {
+      logger.error('Docker execution failed to return a result', {
+        sessionId: sessionId,
+        dockerImage: dockerImage,
+      });
+      return {
+        success: false,
+        status: '💀',
+        message: 'Überprüfung fehlgeschlagen',
+        details:
+          'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut.',
+      };
+    }
+
+    logger.debug('Docker execution completed', {
+      sessionId: sessionId,
+      dockerImage: dockerImage,
+      returnCode: dockerResult.error?.code || 0,
+      stdout: dockerResult.stdout,
+      stderr: dockerResult.stderr,
+    });
+
+    // Check if Docker execution failed
+    if (dockerResult.error && dockerResult.error.code !== 0) {
+      logger.error('Docker execution failed', {
+        sessionId: sessionId,
+        dockerImage: dockerImage,
+        error: dockerResult.error.message,
+        stdout: dockerResult.stdout,
+        stderr: dockerResult.stderr,
+      });
+
+      // If Docker crashes, return compile error similar to Python script
+      const comment =
+        'Compile error\naudoscore crash (probably due to file misspelling or wrong encoding)';
+      return {
+        success: false,
+        status: '💀',
+        message: 'Ausführung fehlgeschlagen. Bitte überprüfe Deinen Code.',
+        details: comment,
+      };
+    }
+
+    // Try to read results.json from result directory
+    const resultsJsonPath = path.join(resultDir, 'results.json');
+
+    if (!(await fs.pathExists(resultsJsonPath))) {
+      logger.warn('Results file not found after Docker execution', {
+        sessionId: sessionId,
+        dockerImage: dockerImage,
+        resultsPath: resultsJsonPath,
+      });
+      return {
+        success: false,
+        status: '⚠️',
+        message:
+          'Es gab ein Problem bei der Überprüfung. Details konnten nicht gelesen werden.',
+        details: 'Tests wurden ausgeführt, aber keine Ergebnisse gefunden.',
+      };
+    }
+
+    // Parse results.json
+    const resultsData = await fs.readJson(resultsJsonPath);
+
+    logger.debug('Docker test results parsed', {
+      sessionId: sessionId,
+      dockerImage: dockerImage,
+      instant_status: resultsData.instant_status,
+      points: resultsData.points,
+      success: resultsData.success,
+      feedback: resultsData.protected_feedback_text,
+    });
+
+    // Format feedback similar to Python script
+    const points = resultsData.points || '0';
+    const instantStatus = resultsData.instant_status || '💀';
+    let feedbackText = resultsData.protected_feedback_text || '';
+
+    // Handle compile errors specifically
+    if (feedbackText.includes('Compile error')) {
+      const instantMessage = resultsData.instant_message || '';
+      feedbackText = `Compile error\n\nReason from auto-feedback:\n\n${instantMessage}`;
+    }
+
+    // Clean feedback text (remove commas to keep CSV structure intact if needed)
+    const cleanFeedbackText = feedbackText.replace(/,/g, '');
+
+    // Determine success based on status
+    const isSuccess = instantStatus === '✔' || instantStatus.includes('✔');
+
+    return {
+      success: isSuccess,
+      status: instantStatus,
+      message: isSuccess
+        ? 'Alles supi. Du kannst die Dateien so auf StudOn hochladen. Genaueres Feedback wird angezeigt, wenn die Deadline vorbei ist.'
+        : 'Das hat nicht geklappt. Bitte schau dir das Feedback an. Wenn Du den Code so abgibst, wird es wahrscheinlich 0 Punkte geben.',
+      details: cleanFeedbackText,
+      points: points,
+      dockerImage: dockerImage,
+    };
+  } catch (error) {
+    logger.error('Error running Docker tests', {
+      sessionId: sessionId,
+      error: error.message,
+      stack: error.stack,
+      exercise: exercise,
+      workingDir: workingDir,
+    });
+
+    return {
+      success: false,
+      status: '⚠️',
+      message: 'Es gab ein Problem bei der Überprüfung',
+      details: `An error occurred while running tests: ${error.message}`,
+    };
+  }
 }
 
 async function cleanupTempDir(tempDir) {

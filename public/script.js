@@ -171,23 +171,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
     }
-    // Build result HTML
-    let secretTestsHtml = '';
-    if (result.deadlinePassed && result.secretTests) {
-      let secretResultType = 'error';
-      if (result.secretTests.success) {
-        secretResultType = 'success';
-      } else if (result.secretTests.status === '⚠️') {
-        secretResultType = 'warning';
-      }
-
-      secretTestsHtml = `
-                <div class="result-card result-${secretResultType} secret-tests">
-                    <div class="result-status">${result.secretTests.status || '❓'}</div>
-                    <div class="result-message">
-                        <strong>Zusätzliche Tests:</strong> ${escapeHtml(result.secretTests.message || 'Unknown result')}
-                    </div>
-                    ${result.secretTests.details ? `<div class="result-details">${escapeHtml(result.secretTests.details)}</div>` : ''}
+    // Build points information
+    let pointsInfo = '';
+    if (result.points !== undefined) {
+      pointsInfo = `
+                <div class="points-info">
+                    <strong>Erreichte Punkte:</strong> ${result.points}
                 </div>
             `;
     }
@@ -196,12 +185,12 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="result-card result-${resultType}">
                 <div class="result-status">${result.status || '❓'}</div>
                 <div class="result-message">
-                    <strong>Basic Tests:</strong> ${escapeHtml(result.message || 'Unknown result')}
+                    <strong>Test Ergebnisse:</strong> ${escapeHtml(result.message || 'Unknown result')}
                 </div>
                 ${deadlineInfo}
+                ${pointsInfo}
                 ${result.details ? `<div class="result-details">${escapeHtml(result.details)}</div>` : ''}
             </div>
-            ${secretTestsHtml}
         `;
 
     resultContent.innerHTML = resultHtml;
