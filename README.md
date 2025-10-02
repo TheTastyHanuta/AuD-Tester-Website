@@ -48,27 +48,17 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    javac -version
    ```
 
-### Create Docker Images for each exercise (if tests are defined)
+5. Install Perl module JSON::XS
 
-For this you will need to have the files required to build the docker images. You can find all the files from StudOn in this repository: https://github.com/TheTastyHanuta/AuDoscore_audmt
+   ```bash
+   sudo apt-get install libjson-xs-perl
+   ```
 
-When you have the files, you will need to build the docker images for each exercise that has tests defined. The Dockerfile requires a specific structure, so make sure to follow it.
+### Create Docker Images for exercises
 
-```
-working_directory/
-├── Dockerfile
-├── files/
-│   ├── cleanroom.zip
-│   └── audoscore.zip
-├── student/
-└── result/
-```
+This website uses Docker Images to run tests in submissions. For it to work on your machine you will need those images. You can find all the files to create them in this repository: https://github.com/TheTastyHanuta/AuDoscore_audmt
 
-To build the docker image, navigate to the working directory and run:
-
-```bash
-docker build -t aufgabeX-NAME .
-```
+Follow the instructions in the README of that repository to create the images.
 
 ### Starting the Server
 
@@ -111,6 +101,7 @@ The application uses the following environment variables:
 
 - `PORT`: The port on which the server will run (default: 3000)
 - `SHOW_SECRET_TESTS`: Boolean flag to show/hide secret tests in the UI
+- `FORCE_SHOW_SECRET_TESTS`: Boolean flag to force showing secret tests regardless of deadline or success
 - `SESSION_SECRET`: Secret key for session encryption
 - `NODE_ENV`: The environment in which the application is running (default: development)
 - `LOG_LEVEL`: The logging level for the application (default: info)
@@ -154,6 +145,7 @@ AuD Tester Website/
 │   └── styles.css         # Styling
 ├── tests/                  # Test files and JAR dependencies
 ├── uploads/               # Temporary upload directory
+├── provided/               # Provided files for exercises
 └── temp/                  # Temporary compilation directory
 ```
 
@@ -167,13 +159,11 @@ AuD Tester Website/
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
 
-## Deployment
-
-### Hosting on Oracle Cloud VM with Cloudflare Tunnel
+## Deployment on Oracle Cloud VM with Cloudflare Tunnel
 
 I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel for secure access.
 
-#### Install Dependencies
+### Install Dependencies
 
 1. **Update System**:
 
@@ -206,7 +196,13 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
    sudo apt install docker.io -y
    ```
 
-#### Deploy Application
+6. **Install Perl JSON::XS Module**:
+
+   ```bash
+   sudo apt-get install libjson-xs-perl
+   ```
+
+### Deploy Application
 
 1. **Clone Repository**:
 
@@ -221,34 +217,24 @@ I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel 
    npm install
    ```
 
-3. **Test Application**:
+3. Create Docker Images for exercises as described in the [Create Docker Images for exercises](#create-docker-images-for-exercises) section.
+
+4. **Test Application**:
 
    ```bash
    node server.js
    ```
 
-4. **Setup Process Manager** (PM2 for production):
+5. **Setup Process Manager** (PM2 for production):
 
-Set environment variables for production:
+   ```bash
+   sudo npm install -g pm2
+   pm2 start server.js --name "aud-tester"
+   pm2 startup
+   pm2 save
+   ```
 
-```bash
-export PORT=3000
-export SHOW_SECRET_TESTS=false
-export SESSION_SECRET=your-session-secret
-export LOG_LEVEL=info
-export NODE_ENV=production
-```
-
-Then create a PM2 startup script:
-
-```bash
-sudo npm install -g pm2
-pm2 start server.js --name "aud-tester"
-pm2 startup
-pm2 save
-```
-
-#### Monitoring and Maintenance
+### Monitoring and Maintenance
 
 1. **Check Application Status**:
 
