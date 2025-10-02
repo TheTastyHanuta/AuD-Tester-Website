@@ -252,7 +252,7 @@ app.post('/submit', (req, res) => {
               success: false,
               status: '💀',
               message:
-                'Compile Error. Bitte überorprüfe deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen.)',
+                'Compile Error. Bitte überprüfe deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen.)',
               details: compilationResult.error,
             });
           } else {
@@ -339,70 +339,80 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         exercise: exerciseConfig?.id,
       });
 
-      let classpath = '.';
-      const testsDir = path.join(__dirname, 'tests');
-
+      // Copy required provided files based on exercise
       try {
-        if (fs.existsSync(testsDir)) {
-          const jarFiles = fs
-            .readdirSync(testsDir)
-            .filter(file => file.endsWith('.jar'));
+        const providedDir = path.join(__dirname, 'provided');
+        const exerciseId = exerciseConfig?.id;
 
-          if (jarFiles.length > 0) {
-            for (const jarFile of jarFiles) {
-              const srcPath = path.join(testsDir, jarFile);
-              const destPath = path.join(workingDir, jarFile);
-              if (!fs.existsSync(destPath)) {
-                try {
-                  fs.linkSync(srcPath, destPath);
-                } catch (linkError) {
-                  fs.copyFileSync(srcPath, destPath);
-                }
-              }
-            }
-
-            const quotedJarFiles = jarFiles.map(file => `"${file}"`);
-            classpath = `.${path.delimiter}${quotedJarFiles.join(path.delimiter)}`;
-            logger.debug('Using classpath with JARs', {
+        if (exerciseId === 'paintcan') {
+          // Copy Paint.java for PaintCan exercise
+          const providedFile = path.join(providedDir, 'Paint.java');
+          const destFile = path.join(workingDir, 'Paint.java');
+          if (fs.existsSync(providedFile) && !fs.existsSync(destFile)) {
+            fs.copyFileSync(providedFile, destFile);
+            logger.debug('Copied provided file for paintcan exercise', {
               sessionId: sessionId,
-              classpath: classpath,
-              jarFiles: jarFiles,
+              providedFile: 'Paint.java',
+            });
+          }
+        } else if (exerciseId === 'sierpinski') {
+          // Copy SierpinskiTriangleAbstract.java for Sierpinski exercise
+          const providedFile = path.join(
+            providedDir,
+            'SierpinskiTriangleAbstract.java'
+          );
+          const destFile = path.join(
+            workingDir,
+            'SierpinskiTriangleAbstract.java'
+          );
+          if (fs.existsSync(providedFile) && !fs.existsSync(destFile)) {
+            fs.copyFileSync(providedFile, destFile);
+            logger.debug('Copied provided file for sierpinski exercise', {
+              sessionId: sessionId,
+              providedFile: 'SierpinskiTriangleAbstract.java',
             });
           }
         }
-      } catch (jarError) {
-        logger.warn('Error handling JAR files during compilation', {
+      } catch (providedError) {
+        logger.warn('Error handling provided files during compilation', {
           sessionId: sessionId,
-          error: jarError.message,
+          exerciseId: exerciseConfig?.id,
+          error: providedError.message,
         });
       }
 
-      // Prepare compilation command
-      const command = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} ${fileNames.map(name => `"${name}"`).join(' ')}`;
+      // Prepare compilation command - include all Java files in working directory
+      const allJavaFiles = fs
+        .readdirSync(workingDir)
+        .filter(file => file.endsWith('.java'));
+      const classpath = '.'; // Set classpath to current directory
+      const command = `javac -source 8 -target 8 -Xlint:-options -cp ${classpath} ${allJavaFiles.map(name => `"${name}"`).join(' ')}`;
       logger.debug('Executing compilation command', {
         sessionId: sessionId,
         command: command,
         workingDir: workingDir,
+        allJavaFiles: allJavaFiles,
       });
 
       // Execute compilation command
       exec(command, { cwd: workingDir }, (error, stdout, stderr) => {
         if (error) {
-          logger.info('Compilation failed', {
+          logger.debug('Compilation failed', {
             sessionId: sessionId,
             error: error.message,
             stderr: stderr,
             stdout: stdout,
-            files: fileNames,
+            files: allJavaFiles,
+            workingDir: workingDir,
           });
           resolve({
             success: false,
             error: stderr || error.message,
           });
         } else {
-          logger.info('Compilation successful', {
+          logger.debug('Compilation successful', {
             sessionId: sessionId,
-            files: fileNames,
+            files: allJavaFiles,
             workingDir: workingDir,
           });
           resolve({
@@ -417,7 +427,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         error: err.message,
         stack: err.stack,
         workingDir: workingDir,
-        files: fileNames,
+        files: allJavaFiles,
       });
       resolve({
         success: false,
