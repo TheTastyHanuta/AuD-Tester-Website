@@ -37,7 +37,7 @@ app.use(
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public', { dotfiles: 'deny' }));
 
 // HTTP request logging with session ID
 morgan.token('sessionId', function (req, res) {
@@ -60,7 +60,9 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    const base = path.basename(file.originalname);
+    const safe = base.replace(/[^A-Za-z0-9._-]/g, '_');
+    cb(null, safe);
   },
 });
 
