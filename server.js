@@ -16,6 +16,7 @@ const { Logger } = require('winston');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.BIND_HOST || '127.0.0.1';
 
 app.set('trust proxy', 1);
 
@@ -851,13 +852,14 @@ app.get('/exercises', (req, res) => {
 // Check Java version and start server
 (async () => {
   await checkJavaVersion();
-  app.listen(PORT, () => {
+  app.listen(PORT, HOST, () => {
     logger.info('AuD Tester Website started', {
       port: PORT,
+      host: HOST,
       environment: process.env.NODE_ENV || 'development',
       javaVersion: 'Java 8 (enforced with -source 8 -target 8)',
       logLevel: logger.level,
     });
-    console.log(`AuD Tester Website running on http://localhost:${PORT}`);
+    console.log(`AuD Tester Website running on http://${HOST}:${PORT}`);
   });
 })();
