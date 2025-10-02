@@ -56,7 +56,7 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 
 ### Create Docker Images for exercises
 
-This website uses Docker Images to run tests in submissions. For it to work on your machine you will need those images. You can find all the files to create them in this repository: https://github.com/TheTastyHanuta/AuDoscore_audmt
+This website uses Docker Images to run tests in submissions. For it to work on your machine you will need those images. You can find all the files to create them in this repository: <https://github.com/TheTastyHanuta/AuD-Docker-Files>
 
 Follow the instructions in the README of that repository to create the images.
 
@@ -134,7 +134,7 @@ Example exercise configuration:
 
 ## Project Structure
 
-```
+```bash
 AuD Tester Website/
 ├── server.js              # Main server application
 ├── package.json            # Node.js dependencies
