@@ -144,7 +144,7 @@ app.post('/submit', (req, res) => {
         // If encoding check fails, return early
         if (!encodingCheck.valid) {
           logger.info('Encoding check failed', {
-            sessionId: req.session.id,
+            sessionId: sessionId,
             details: encodingCheck.details,
           });
           return res.json({
@@ -255,7 +255,7 @@ app.post('/submit', (req, res) => {
             });
             return res.json({
               success: false,
-              status: '💀',
+              status: '❌',
               message:
                 'Compile Error. Bitte überprüfe deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen.)',
               details: compilationResult.error,
@@ -298,6 +298,7 @@ app.post('/submit', (req, res) => {
           await cleanupTempDir(tempDir);
         } catch (cleanupError) {
           logger.warn('Could not clean up temp directory', {
+            sessionId: sessionId,
             tempDir: tempDir,
             error: cleanupError.message,
           });
@@ -375,6 +376,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
             logger.debug('Copied provided file for sierpinski exercise', {
               sessionId: sessionId,
               providedFile: 'SierpinskiTriangleAbstract.java',
+              exercise: exerciseConfig?.id,
             });
           }
         }
@@ -383,6 +385,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
           sessionId: sessionId,
           exerciseId: exerciseConfig?.id,
           error: providedError.message,
+          exercise: exerciseConfig?.id,
         });
       }
 
@@ -397,6 +400,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         command: command,
         workingDir: workingDir,
         allJavaFiles: allJavaFiles,
+        exercise: exerciseConfig?.id,
       });
 
       // Execute compilation command
@@ -409,6 +413,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
             stdout: stdout,
             files: allJavaFiles,
             workingDir: workingDir,
+            exercise: exerciseConfig?.id,
           });
           resolve({
             success: false,
@@ -419,6 +424,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
             sessionId: sessionId,
             files: allJavaFiles,
             workingDir: workingDir,
+            exercise: exerciseConfig?.id,
           });
           resolve({
             success: true,
@@ -433,6 +439,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         stack: err.stack,
         workingDir: workingDir,
         files: allJavaFiles,
+        exercise: exerciseConfig?.id,
       });
       resolve({
         success: false,
@@ -510,6 +517,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       dockerImage: dockerImage,
       workingDir: workingDir,
       resultDir: resultDir,
+      exercise: exercise,
     });
 
     // Execute Docker command with timeout
@@ -523,6 +531,9 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       logger.error('Docker execution failed to return a result', {
         sessionId: sessionId,
         dockerImage: dockerImage,
+        workingDir: workingDir,
+        resultDir: resultDir,
+        exercise: exercise,
       });
       return {
         success: false,
@@ -539,6 +550,9 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       returnCode: dockerResult.error?.code || 0,
       stdout: dockerResult.stdout,
       stderr: dockerResult.stderr,
+      workingDir: workingDir,
+      resultDir: resultDir,
+      exercise: exercise,
     });
 
     // Check if Docker execution failed
@@ -549,6 +563,9 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         error: dockerResult.error.message,
         stdout: dockerResult.stdout,
         stderr: dockerResult.stderr,
+        workingDir: workingDir,
+        resultDir: resultDir,
+        exercise: exercise,
       });
 
       // If Docker crashes, return compile error similar to Python script
@@ -570,6 +587,9 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         sessionId: sessionId,
         dockerImage: dockerImage,
         resultsPath: resultsJsonPath,
+        workingDir: workingDir,
+        resultDir: resultDir,
+        exercise: exercise,
       });
       return {
         success: false,
@@ -588,12 +608,17 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       sessionId: sessionId,
       dockerImage: dockerImage,
       instant_status: resultsData.instant_status,
+      protected_status: resultsData.protected_status,
       points: resultsData.points,
-      success: resultsData.success,
+      successful_run: resultsData.success,
       feedback: resultsData.protected_feedback_text,
+      instantMessage: resultsData.instant_message,
+      workingDir: workingDir,
+      resultDir: resultDir,
+      exercise: exercise,
     });
 
-    // Format feedback similar to Python script
+    // Format feedback
     const points = resultsData.points || '0';
     let instantStatus = resultsData.instant_status || '💀';
     let feedbackText = resultsData.protected_feedback_text || '';
@@ -604,20 +629,44 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       feedbackText = `Compile error\n\nReason from auto-feedback:\n\n${instantMessage}`;
     }
 
-    // Clean feedback text (remove commas to keep CSV structure intact if needed)
+    // Clean feedback text
     const cleanFeedbackText = feedbackText.replace(/,/g, '');
 
     // Determine success based on status
     let isSuccess = instantStatus === '✔' || instantStatus.includes('✔');
 
     if (instantStatus === '✔') instantStatus = '✅';
+    if (instantStatus === '☠') instantStatus = '❌';
+    if (instantStatus === '✘') instantStatus = '❌';
+    if (instantStatus === '!') instantStatus = '❌';
+    if (instantStatus === '⚠️') {
+      logger.warn('Docker test returned an internal error', {
+        sessionId: sessionId,
+        dockerImage: dockerImage,
+        instantStatus: instantStatus,
+        workingDir: workingDir,
+        resultDir: resultDir,
+        exercise: exercise,
+      });
+    }
+
+    // Build message based on status
+    let message;
+    if (instantStatus === '✅') {
+      message =
+        'Alles supi. Du kannst die Dateien so auf StudOn hochladen. Genaueres Feedback wird angezeigt, wenn die Deadline vorbei ist.';
+    } else if (instantStatus === '⚠️') {
+      message =
+        'Internal Error. Das ist gar nicht gut. Wenn das öfter passiert, melde Dich bitte im Forum.';
+    } else {
+      message =
+        'Dein Code hat nicht erfolgreich kompiliert. Bitte schau dir das Feedback an. Wenn Du den Code so abgibst, wird es wahrscheinlich 0 Punkte geben.';
+    }
 
     return {
       success: isSuccess,
       status: instantStatus,
-      message: isSuccess
-        ? 'Alles supi. Du kannst die Dateien so auf StudOn hochladen. Genaueres Feedback wird angezeigt, wenn die Deadline vorbei ist.'
-        : 'Das hat nicht geklappt. Bitte schau dir das Feedback an. Wenn Du den Code so abgibst, wird es wahrscheinlich 0 Punkte geben.',
+      message: message,
       details: cleanFeedbackText,
       points: points,
       dockerImage: dockerImage,
@@ -629,6 +678,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       stack: error.stack,
       exercise: exercise,
       workingDir: workingDir,
+      resultDir: resultDir,
+      dockerImage: dockerImage,
     });
 
     return {

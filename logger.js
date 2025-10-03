@@ -29,9 +29,18 @@ const consoleFormat = winston.format.combine(
   })
 );
 
+// Define file format for log files
+const fileFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
+  })
+);
+
 // Create the logger
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: 'debug',
   format: logFormat,
   defaultMeta: { service: 'aud-tester' },
   transports: [
@@ -43,6 +52,18 @@ const logger = winston.createLogger({
       maxSize: '20m',
       maxFiles: '14d',
       zippedArchive: true,
+      format: fileFormat,
+    }),
+
+    // Warning log - only warnings
+    new DailyRotateFile({
+      filename: path.join(logsDir, 'warn-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'warn',
+      maxSize: '20m',
+      maxFiles: '14d',
+      zippedArchive: true,
+      format: fileFormat,
     }),
 
     // Combined log - all levels
@@ -52,6 +73,7 @@ const logger = winston.createLogger({
       maxSize: '20m',
       maxFiles: '30d',
       zippedArchive: true,
+      format: fileFormat,
     }),
 
     // Application log - info and above (excluding debug)
@@ -62,6 +84,7 @@ const logger = winston.createLogger({
       maxSize: '20m',
       maxFiles: '30d',
       zippedArchive: true,
+      format: fileFormat,
     }),
   ],
 });
