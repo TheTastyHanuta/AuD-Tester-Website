@@ -115,7 +115,7 @@ Exercises are configured in `exercises.json`. Each exercise has the following pr
 - `id`: Unique identifier for the exercise
 - `name`: Display name shown to users
 - `points`: Maximum points available
-- `hasTests`: Boolean indicating if tests exist (for future implementation)
+- `hasTests`: Boolean indicating if tests exist
 - `required_files`: List of required file names (for validation)
 - `deadline`: ISO date string for the submission deadline
 
