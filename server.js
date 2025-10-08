@@ -136,24 +136,6 @@ app.post('/submit', (req, res) => {
           await fs.copy(file.path, tempFilePath);
         }
 
-        // Check for non-ASCII characters in all files
-        const encodingCheck = await validateUSASCIIEncoding(
-          tempDir,
-          uploadedFiles.map(f => f.filename)
-        );
-        // If encoding check fails, return early
-        if (!encodingCheck.valid) {
-          logger.info('Encoding check failed', {
-            sessionId: sessionId,
-            details: encodingCheck.details,
-          });
-          return res.json({
-            success: false,
-            status: '⚠️',
-            message: 'Encoding Error: Non-ASCII characters detected',
-            details: encodingCheck.details,
-          });
-        }
         // If no exercise selected, return early
         const exerciseConfig = getExerciseConfig(exercise);
         if (!exerciseConfig) {
@@ -170,21 +152,39 @@ app.post('/submit', (req, res) => {
           uploadedFiles.map(f => f.filename),
           exerciseConfig.required_files || []
         );
-        // If required files are missing, return early
+        // If required files are missing or extra files are present, return early
         if (!requiredFilesCheck.valid) {
-          logger.info('Missing required files in submission', {
+          logger.info('File validation failed in submission', {
             sessionId: sessionId,
             exercise: exercise,
-            missingFiles: requiredFilesCheck.details,
+            uploadedFiles: uploadedFiles.map(f => f.filename),
+            requiredFiles: exerciseConfig.required_files || [],
+            validationDetails: requiredFilesCheck.details,
           });
           return res.json({
             success: false,
             status: '❌',
-            message: 'Fehlende erforderliche Dateien',
+            message: 'Ungültige Dateiauswahl',
             details: requiredFilesCheck.details,
             deadline: exerciseConfig.deadline,
             deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
           });
+        }
+
+        // Check for non-ASCII characters in all files
+        const encodingCheck = await validateUSASCIIEncoding(
+          tempDir,
+          uploadedFiles.map(f => f.filename)
+        );
+        // Log encoding issues but continue processing
+        if (!encodingCheck.valid) {
+          logger.info(
+            'Encoding issues detected, but continuing with tests/compilation',
+            {
+              sessionId: sessionId,
+              details: encodingCheck.details,
+            }
+          );
         }
 
         // Main testing will be handled below
@@ -224,6 +224,9 @@ app.post('/submit', (req, res) => {
               details: dockerTestResult.details,
               deadline: exerciseConfig.deadline,
               deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+              encodingWarning: !encodingCheck.valid
+                ? encodingCheck.details
+                : null,
             });
           } else {
             // If deadline is not passed and submission was successful, return without detailed feedback
@@ -233,6 +236,9 @@ app.post('/submit', (req, res) => {
               message: dockerTestResult.message,
               deadline: exerciseConfig.deadline,
               deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+              encodingWarning: !encodingCheck.valid
+                ? encodingCheck.details
+                : null,
             });
           }
         } else {
@@ -257,8 +263,11 @@ app.post('/submit', (req, res) => {
               success: false,
               status: '❌',
               message:
-                'Compile Error. Bitte überprüfe deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen.)',
+                'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)',
               details: compilationResult.error,
+              encodingWarning: !encodingCheck.valid
+                ? encodingCheck.details
+                : null,
             });
           } else {
             // If compilation is successful, return success message
@@ -274,6 +283,9 @@ app.post('/submit', (req, res) => {
                 'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
               deadline: exerciseConfig.deadline,
               deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+              encodingWarning: !encodingCheck.valid
+                ? encodingCheck.details
+                : null,
             });
           }
         }
@@ -389,7 +401,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         });
       }
 
-      // Prepare compilation command - include all Java files in working directory
+      // Prepare compilation command, include all Java files in working directory
       const allJavaFiles = fs
         .readdirSync(workingDir)
         .filter(file => file.endsWith('.java'));
@@ -499,7 +511,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     const resultDir = path.join(workingDir, 'result');
     await fs.ensureDir(resultDir);
 
-    // Docker command similar to the Python script
+    // Docker command
     const dockerCommand = [
       'docker',
       'run',
@@ -568,13 +580,14 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         exercise: exercise,
       });
 
-      // If Docker crashes, return compile error similar to Python script
+      // If Docker crashes, return compile error
       const comment =
         'Compile error\naudoscore crash (probably due to file misspelling or wrong encoding)';
       return {
         success: false,
-        status: '💀',
-        message: 'Ausführung fehlgeschlagen. Bitte überprüfe Deinen Code.',
+        status: '❌',
+        message:
+          'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)',
         details: comment,
       };
     }
@@ -660,7 +673,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         'Internal Error. Das ist gar nicht gut. Wenn das öfter passiert, melde Dich bitte im Forum.';
     } else {
       message =
-        'Dein Code hat nicht erfolgreich kompiliert. Bitte schau dir das Feedback an. Wenn Du den Code so abgibst, wird es wahrscheinlich 0 Punkte geben.';
+        'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)';
     }
 
     return {
@@ -780,10 +793,10 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
     let details =
       'Deine Java-Dateien enthalten nicht-ASCII-Zeichen. Bitte verwende nur US-ASCII-Codierung.\n\n';
     details +=
-      'Du musst die Projekt- und Dateicodierung auf US-ASCII einstellen. Andernfalls wird der Code nicht kompiliert.\n';
+      'Du solltest die Projekt- und Dateicodierung auf US-ASCII einstellen. Andernfalls kann es passieren, dass der Code nicht kompiliert.\n';
     details += 'Schau dir unsere Anweisungen zu Beginn des Semesters an.\n\n';
     details += 'Häufige nicht-ASCII-Zeichen, die vermieden werden sollten:\n';
-    details += '• Deutsche Umlaute: ä, ö, ü, Ä, Ö, Ü, ß\n';
+    details += '• Umlaute: ä, ö, ü, Ä, Ö, Ü, ß\n';
     details += '• Akzentuierte Zeichen: é, è, à, ç, etc.\n';
     details += '• Besondere Anführungszeichen: " " \' \'\n';
     details += '• Em/en-Dash: — –\n\n';
@@ -812,15 +825,6 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
       details += '\n';
     }
 
-    details += 'Lösungen:\n';
-    details += '• Ersetze ä, ö, ü durch ae, oe, ue\n';
-    details += '• Ersetze ß durch ss\n';
-    details += '• Verwende normale Anführungszeichen: " statt " "\n';
-    details += "• Verwende normale Apostrophe: \\' statt \\'\n";
-    details += '• Verwende normale Bindestriche: - statt — oder –\n';
-    details +=
-      '• Vermeide alle Zeichen mit Akzenten oder Sonderzeichen im Code\n';
-
     return {
       valid: false,
       details: details,
@@ -840,8 +844,11 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
   }
 
   const missingFiles = [];
+  const extraFiles = [];
   const uploadedNames = uploadedFileNames.map(name => name.toLowerCase());
+  const requiredNames = requiredFiles.map(name => name.toLowerCase());
 
+  // Check for missing files
   for (const requiredFile of requiredFiles) {
     const requiredLower = requiredFile.toLowerCase();
     if (!uploadedNames.includes(requiredLower)) {
@@ -849,16 +856,38 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
     }
   }
 
-  if (missingFiles.length === 0) {
+  // Check for extra files (files that are not required)
+  for (const uploadedFile of uploadedFileNames) {
+    const uploadedLower = uploadedFile.toLowerCase();
+    if (!requiredNames.includes(uploadedLower)) {
+      extraFiles.push(uploadedFile);
+    }
+  }
+
+  // If there are missing files or extra files, return invalid
+  if (missingFiles.length === 0 && extraFiles.length === 0) {
     return { valid: true };
   }
 
-  let details = `Diese Übung erfordert das Hochladen spezifischer Dateien. Dir fehlen:\n\n`;
-  missingFiles.forEach(file => {
-    details += `• ${file}\n`;
-  });
+  let details = `Diese Übung erfordert das Hochladen spezifischer Dateien.\n\n`;
 
-  details += `\nBenötigte Dateien für diese Übung:\n`;
+  if (missingFiles.length > 0) {
+    details += `Dir fehlen:\n`;
+    missingFiles.forEach(file => {
+      details += `• ${file}\n`;
+    });
+    details += `\n`;
+  }
+
+  if (extraFiles.length > 0) {
+    details += `Du hast zu viele Dateien hochgeladen. Folgende Dateien sind nicht erlaubt:\n`;
+    extraFiles.forEach(file => {
+      details += `• ${file}\n`;
+    });
+    details += `\n`;
+  }
+
+  details += `Benötigte Dateien für diese Übung:\n`;
   requiredFiles.forEach(file => {
     const uploaded = uploadedNames.includes(file.toLowerCase());
     details += `${uploaded ? '✅' : '❌'} ${file}\n`;
@@ -866,10 +895,11 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
 
   details += `\nHochgeladene Dateien:\n`;
   uploadedFileNames.forEach(file => {
-    details += `• ${file}\n`;
+    const isRequired = requiredNames.includes(file.toLowerCase());
+    details += `${isRequired ? '✅' : '❌'} ${file}\n`;
   });
 
-  details += `\nBitte stelle sicher, dass du alle erforderlichen Dateien mit den genau angegebenen Dateinamen hochlädst.`;
+  details += `\nBitte lade nur die erforderlichen Dateien mit den genau angegebenen Dateinamen hoch.`;
 
   return {
     valid: false,

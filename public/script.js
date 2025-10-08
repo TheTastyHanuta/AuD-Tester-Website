@@ -181,7 +181,22 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
     }
 
+    // Build encoding warning
+    let encodingWarningHtml = '';
+    if (result.encodingWarning) {
+      encodingWarningHtml = `
+                <div class="result-card result-warning encoding-warning">
+                    <div class="result-status">⚠️</div>
+                    <div class="result-message">
+                        <strong>Encoding-Warnung:</strong> Non-ASCII-Zeichen gefunden
+                    </div>
+                    <div class="result-details">${escapeHtml(result.encodingWarning)}</div>
+                </div>
+            `;
+    }
+
     const resultHtml = `
+            ${encodingWarningHtml}
             <div class="result-card result-${resultType}">
                 <div class="result-status">${result.status || '❓'}</div>
                 <div class="result-message">

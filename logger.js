@@ -2,12 +2,24 @@ const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
 
-// Create logs directory if it doesn't exist
+// Create logs directories if they don't exist
 const fs = require('fs');
 const logsDir = path.join(__dirname, 'logs');
+const errorLogsDir = path.join(logsDir, 'error');
+const combinedLogsDir = path.join(logsDir, 'combined');
+const appLogsDir = path.join(logsDir, 'app');
+
+// Create main logs directory
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir);
 }
+
+// Create subdirectories for each log type
+[errorLogsDir, combinedLogsDir, appLogsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -46,7 +58,7 @@ const logger = winston.createLogger({
   transports: [
     // Error log - only errors
     new DailyRotateFile({
-      filename: path.join(logsDir, 'error-%DATE%.log'),
+      filename: path.join(errorLogsDir, 'error-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       level: 'error',
       maxSize: '20m',
@@ -55,20 +67,9 @@ const logger = winston.createLogger({
       format: fileFormat,
     }),
 
-    // Warning log - only warnings
-    new DailyRotateFile({
-      filename: path.join(logsDir, 'warn-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      level: 'warn',
-      maxSize: '20m',
-      maxFiles: '14d',
-      zippedArchive: true,
-      format: fileFormat,
-    }),
-
     // Combined log - all levels
     new DailyRotateFile({
-      filename: path.join(logsDir, 'combined-%DATE%.log'),
+      filename: path.join(combinedLogsDir, 'combined-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       maxSize: '20m',
       maxFiles: '30d',
@@ -78,7 +79,7 @@ const logger = winston.createLogger({
 
     // Application log - info and above (excluding debug)
     new DailyRotateFile({
-      filename: path.join(logsDir, 'app-%DATE%.log'),
+      filename: path.join(appLogsDir, 'app-%DATE%.log'),
       datePattern: 'YYYY-MM-DD',
       level: 'info',
       maxSize: '20m',

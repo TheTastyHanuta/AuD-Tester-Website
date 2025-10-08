@@ -245,6 +245,16 @@ small {
   border-left-color: #dd6b20;
 }
 
+.encoding-warning {
+  margin-bottom: 15px;
+  border: 2px solid #dd6b20;
+  background: #3d2b18;
+}
+
+.encoding-warning .result-message {
+  color: #f6ad55;
+}
+
 .result-status {
   font-size: 24px;
   margin-bottom: 10px;
