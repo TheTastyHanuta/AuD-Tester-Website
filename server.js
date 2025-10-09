@@ -159,7 +159,6 @@ app.post('/submit', (req, res) => {
             exercise: exercise,
             uploadedFiles: uploadedFiles.map(f => f.filename),
             requiredFiles: exerciseConfig.required_files || [],
-            validationDetails: requiredFilesCheck.details,
           });
           return res.json({
             success: false,
@@ -182,7 +181,7 @@ app.post('/submit', (req, res) => {
             'Encoding issues detected, but continuing with tests/compilation',
             {
               sessionId: sessionId,
-              details: encodingCheck.details,
+              exercise: exercise,
             }
           );
         }
@@ -503,7 +502,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         success: false,
         status: '⚠️',
         message: 'Test configuration error',
-        details: 'Es wurde kein Test für diese Übung konfiguriert.',
+        details:
+          'Es wurde kein Test für diese Übung konfiguriert. Das sollte nicht passieren. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
     }
 
@@ -549,10 +549,10 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       });
       return {
         success: false,
-        status: '💀',
+        status: '⚠️',
         message: 'Überprüfung fehlgeschlagen',
         details:
-          'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut und überprüfe Deinen Code.',
+          'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut und überprüfe Deinen Code. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
     }
 
@@ -610,7 +610,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         message:
           'Es gab ein Problem bei der Überprüfung. Details konnten nicht gelesen werden.',
         details:
-          'Tests wurden ausgeführt, aber keine Ergebnisse gefunden. Bitte überprüfe Deinen Code.',
+          'Tests wurden ausgeführt, aber keine Ergebnisse gefunden. Bitte überprüfe Deinen Code. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
     }
 
@@ -633,7 +633,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
 
     // Format feedback
     const points = resultsData.points || '0';
-    let instantStatus = resultsData.instant_status || '💀';
+    let instantStatus = resultsData.instant_status || '❌';
     let feedbackText = resultsData.protected_feedback_text || '';
 
     // Handle compile errors specifically
@@ -648,11 +648,11 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     // Determine success based on status
     let isSuccess = instantStatus === '✔' || instantStatus.includes('✔');
 
-    if (instantStatus === '✔') instantStatus = '✅';
-    if (instantStatus === '☠') instantStatus = '❌';
-    if (instantStatus === '✘') instantStatus = '❌';
-    if (instantStatus === '!') instantStatus = '❌';
-    if (instantStatus === '⚠️') {
+    if (instantStatus === '✔') {
+      instantStatus = '✅';
+      isSuccess = true;
+    } else if (instantStatus === '⚠️') {
+      isSuccess = false;
       logger.warn('Docker test returned an internal error', {
         sessionId: sessionId,
         dockerImage: dockerImage,
@@ -661,6 +661,9 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         resultDir: resultDir,
         exercise: exercise,
       });
+    } else {
+      instantStatus = '❌';
+      isSuccess = false;
     }
 
     // Build message based on status

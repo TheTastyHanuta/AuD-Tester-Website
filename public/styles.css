@@ -1,3 +1,10 @@
+.important-note {
+  font-weight: bold;
+  display: inline-block;
+}
+.red-text {
+  color: #e53e3e;
+}
 * {
   margin: 0;
   padding: 0;
