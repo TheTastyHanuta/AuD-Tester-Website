@@ -111,7 +111,7 @@ if (process.env.NODE_ENV !== 'production') {
 // Create a stream object for Morgan HTTP logging middleware
 logger.stream = {
   write: message => {
-    logger.info(message.trim());
+    logger.debug(message.trim());
   },
 };
 
