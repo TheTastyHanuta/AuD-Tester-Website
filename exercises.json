@@ -5,7 +5,7 @@
     "points": 3,
     "hasTests": false,
     "required_files": ["HelloWorld.java"],
-    "deadline": "2025-11-02T21:00:00Z"
+    "deadline": "2025-11-09T21:00:00Z"
   },
   {
     "id": "circuit",
@@ -13,7 +13,7 @@
     "points": 16,
     "hasTests": false,
     "required_files": ["Circuit.java"],
-    "deadline": "2025-11-02T21:00:00Z"
+    "deadline": "2025-11-09T21:00:00Z"
   },
   {
     "id": "loops",
@@ -21,7 +21,7 @@
     "points": 11,
     "hasTests": false,
     "required_files": ["Loops.java"],
-    "deadline": "2025-11-09T21:00:00Z"
+    "deadline": "2025-11-16T21:00:00Z"
   },
   {
     "id": "arrays",
@@ -29,7 +29,7 @@
     "points": 14,
     "hasTests": true,
     "required_files": ["Arrays.java"],
-    "deadline": "2025-11-09T21:00:00Z"
+    "deadline": "2025-11-16T21:00:00Z"
   },
   {
     "id": "signalplotter",
@@ -37,7 +37,7 @@
     "points": 20,
     "hasTests": true,
     "required_files": ["SignalPlotter.java"],
-    "deadline": "2025-11-16T21:00:00Z"
+    "deadline": "2025-11-23T21:00:00Z"
   },
   {
     "id": "caesarchiffre",
@@ -45,7 +45,7 @@
     "points": 13,
     "hasTests": true,
     "required_files": ["CaesarChiffre.java"],
-    "deadline": "2025-11-16T21:00:00Z"
+    "deadline": "2025-11-23T21:00:00Z"
   },
   {
     "id": "color",
@@ -53,7 +53,7 @@
     "points": 18,
     "hasTests": true,
     "required_files": ["Color.java"],
-    "deadline": "2025-11-23T21:00:00Z"
+    "deadline": "2025-11-30T21:00:00Z"
   },
   {
     "id": "snakegame",
@@ -68,7 +68,7 @@
       "Apple.java",
       "Point.java"
     ],
-    "deadline": "2025-12-07T21:00:00Z"
+    "deadline": "2025-12-14T21:00:00Z"
   },
   {
     "id": "paintcan",
@@ -76,7 +76,7 @@
     "points": 7,
     "hasTests": false,
     "required_files": ["PaintCan.java"],
-    "deadline": "2025-12-14T21:00:00Z"
+    "deadline": "2025-12-21T21:00:00Z"
   },
   {
     "id": "recursion",
@@ -84,7 +84,7 @@
     "points": 12,
     "hasTests": false,
     "required_files": ["Recursion.java"],
-    "deadline": "2025-12-14T21:00:00Z"
+    "deadline": "2025-12-21T21:00:00Z"
   },
   {
     "id": "sierpinski",
@@ -92,7 +92,7 @@
     "points": 11,
     "hasTests": false,
     "required_files": ["SierpinskiTriangle.java"],
-    "deadline": "2025-12-14T21:00:00Z"
+    "deadline": "2025-12-21T21:00:00Z"
   },
   {
     "id": "sortedset",
@@ -100,7 +100,7 @@
     "points": 36,
     "hasTests": true,
     "required_files": ["SortedSet.java", "ElementExistsException.java"],
-    "deadline": "2025-12-21T21:00:00Z"
+    "deadline": "2026-01-11T21:00:00Z"
   },
   {
     "id": "contactdb",
@@ -114,7 +114,7 @@
       "AuDHashTable.java",
       "AuDOpenHashTable.java"
     ],
-    "deadline": "2026-01-11T21:00:00Z"
+    "deadline": "2026-01-18T21:00:00Z"
   },
   {
     "id": "binarytree",
@@ -122,6 +122,6 @@
     "points": 20,
     "hasTests": true,
     "required_files": ["BinarySearchTree.java", "ElementExistsException.java"],
-    "deadline": "2026-01-18T21:00:00Z"
+    "deadline": "2026-01-25T21:00:00Z"
   }
 ]
