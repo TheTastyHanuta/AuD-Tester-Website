@@ -253,10 +253,15 @@ app.post('/submit', (req, res) => {
           );
           // If submission compilation fails return early
           if (!compilationResult.success) {
-            logger.info('Compilation failed', {
+            logger.debug('Compilation failed without tests result', {
               sessionId: sessionId,
               exercise: exercise,
               error: compilationResult.error,
+              workingDir: tempDir,
+            });
+            logger.info('Compilation failed without tests', {
+              sessionId: sessionId,
+              exercise: exercise,
             });
             return res.json({
               success: false,
