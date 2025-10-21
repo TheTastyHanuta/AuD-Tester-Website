@@ -289,20 +289,6 @@ app.get('/admin/logs/sse', requireAdmin, async (req, res) => {
 
   startTail(currentName);
 
-  // Periodically check for a newer daily file (rotation)
-  const checkTimer = setInterval(async () => {
-    try {
-      const latest = await getLatestLogFile(type);
-      if (latest && latest !== currentName) {
-        currentName = latest;
-        sseSend(`[switching to ${latest}]`);
-        startTail(latest);
-      }
-    } catch (e) {
-      logger.warn('Failed to check latest log file', { error: e.message });
-    }
-  }, 60 * 1000);
-
   req.on('close', () => {
     clearInterval(checkTimer);
     if (tailProc) {
