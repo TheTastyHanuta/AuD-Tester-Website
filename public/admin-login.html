@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+      }
+
+      .auth-card {
+        width: 100%;
+        max-width: 420px;
+        padding: 28px;
+        background: #2d3748;
+        border: 1px solid #4a5568;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        color: #e2e8f0;
+      }
+
+      .auth-title {
+        margin: 0 0 12px 0;
+        font-size: 24px;
+        font-weight: 700;
+        text-align: center;
+        color: #f8fafc;
+      }
+
+      .auth-subtle {
+        text-align: center;
+        margin-bottom: 16px;
+        color: #a0aec0;
+        font-size: 14px;
+      }
+
+      .auth-label {
+        display: block;
+        margin: 8px 0 6px;
+        font-weight: 500;
+        color: #e2e8f0;
+      }
+
+      .auth-input {
+        width: 100%;
+        padding: 12px 14px;
+        border: 2px solid #4a5568;
+        border-radius: 8px;
+        background: #1a202c;
+        color: #e2e8f0;
+        outline: none;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+      .auth-input:focus {
+        border-color: #4c51bf;
+        box-shadow: 0 0 0 3px rgba(76, 81, 191, 0.2);
+      }
+
+      .auth-actions {
+        margin-top: 14px;
+      }
+      .auth-btn {
+        width: 100%;
+      }
+
+      .muted {
+        color: #a0aec0;
+        font-size: 0.9rem;
+        text-align: center;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-card">
+      <h1 class="auth-title">Admin Login</h1>
+      <div class="auth-subtle">Bitte gib das Admin-Passwort ein</div>
+      <form method="POST" action="/admin/login">
+        <input type="hidden" name="return" id="returnInput" />
+        <label for="password" class="auth-label">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          class="auth-input"
+          required
+          autocomplete="current-password"
+          autofocus
+        />
+        <div class="auth-actions">
+          <button type="submit" class="submit-btn auth-btn">Sign in</button>
+        </div>
+      </form>
+      <p class="muted">Access is restricted.</p>
+    </div>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const ret = params.get('return') || '/admin/logs';
+      document.getElementById('returnInput').value = ret;
+    </script>
+  </body>
+</html>
