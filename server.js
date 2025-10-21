@@ -193,7 +193,7 @@ async function getLatestLogFile(type) {
 
 // List log files
 app.get('/admin/logs/list', requireAdmin, async (req, res) => {
-  const type = (req.query.type || 'combined').toString();
+  const type = (req.query.type || 'app').toString();
   try {
     const files = await listLogFiles(type);
     res.json({ type, files });
@@ -205,7 +205,7 @@ app.get('/admin/logs/list', requireAdmin, async (req, res) => {
 
 // Download or view a specific log file
 app.get('/admin/logs/file', requireAdmin, async (req, res) => {
-  const type = (req.query.type || 'combined').toString();
+  const type = (req.query.type || 'app').toString();
   const name = (req.query.name || '').toString();
   const raw = req.query.raw === '1';
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.log(\.gz)?$/.test(name)) {
@@ -241,7 +241,7 @@ app.get('/admin/logs/file', requireAdmin, async (req, res) => {
 
 // Server-Sent Events for live log streaming using tail -F
 app.get('/admin/logs/sse', requireAdmin, async (req, res) => {
-  const type = (req.query.type || 'combined').toString();
+  const type = (req.query.type || 'app').toString();
   const dir = getLogDir(type);
   await fs.ensureDir(dir);
   let currentName = (await getLatestLogFile(type)) || '';
@@ -289,8 +289,18 @@ app.get('/admin/logs/sse', requireAdmin, async (req, res) => {
 
   startTail(currentName);
 
+  try {
+    const latest = await getLatestLogFile(type);
+    if (latest && latest !== currentName) {
+      currentName = latest;
+      sseSend(`[switching to ${latest}]`);
+      startTail(latest);
+    }
+  } catch (e) {
+    logger.warn('Failed to check latest log file', { error: e.message });
+  }
+
   req.on('close', () => {
-    clearInterval(checkTimer);
     if (tailProc) {
       try {
         tailProc.kill();
