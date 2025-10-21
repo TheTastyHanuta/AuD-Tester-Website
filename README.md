@@ -282,3 +282,19 @@ When reporting issues, please include:
 ## License
 
 This project is open source and available under MIT License.
+
+## Admin Log Viewer
+
+A password-protected log viewer is available to inspect Winston rotated logs without SSH.
+
+Setup:
+
+- Set environment variables:
+  - `SESSION_SECRET` — strong random string
+  - `LOG_VIEWER_PASSWORD` — password for admin login
+
+Usage:
+
+- Visit `/admin/login`, sign in, then go to `/admin/logs`.
+- Choose among combined, app, or error logs.
+- Live stream uses Server-Sent Events (tail -F). Older rotated logs can be viewed or downloaded.
