@@ -269,8 +269,8 @@ app.get('/admin/logs/sse', requireAdmin, async (req, res) => {
       } catch (_) {}
     }
     const full = path.join(dir, filePath);
-    // -n 200 to send last lines
-    tailProc = spawn('tail', ['-n', '200', '-F', full]);
+    // -n 300 to send last lines
+    tailProc = spawn('tail', ['-n', '300', '-F', full]);
     tailProc.stdout.setEncoding('utf8');
     tailProc.stdout.on('data', chunk => {
       const lines = chunk.split(/\r?\n/);
