@@ -473,12 +473,6 @@ app.post('/submit', (req, res) => {
           );
           // If submission compilation fails return early
           if (!compilationResult.success) {
-            logger.debug('Compilation failed without tests result', {
-              sessionId: sessionId,
-              exercise: exercise,
-              error: compilationResult.error,
-              workingDir: tempDir,
-            });
             logger.info('Compilation failed without tests', {
               sessionId: sessionId,
               exercise: exercise,
@@ -644,8 +638,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         if (error) {
           logger.debug('Compilation failed', {
             sessionId: sessionId,
-            error: error.message,
-            stderr: stderr,
+            error: stderr || error.message,
             stdout: stdout,
             files: allJavaFiles,
             workingDir: workingDir,
@@ -660,6 +653,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
             sessionId: sessionId,
             files: allJavaFiles,
             workingDir: workingDir,
+            stdout: stdout,
             exercise: exerciseConfig?.id,
           });
           resolve({
