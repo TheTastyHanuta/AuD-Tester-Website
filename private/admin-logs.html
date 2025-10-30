@@ -61,6 +61,7 @@
         display: flex;
         flex-direction: column;
         min-height: 0;
+        overflow: hidden;
       }
       .panel {
         background: #1a202c;
@@ -70,6 +71,7 @@
         display: flex;
         flex-direction: column;
         flex: 1;
+        min-height: 0; /* critical for nested flex scrolling areas */
       }
       .toolbar {
         display: flex;
@@ -110,6 +112,7 @@
         gap: 6px;
         overflow: auto;
         flex: 1;
+        min-height: 0;
       }
       .file-item {
         display: flex;
@@ -256,20 +259,6 @@
 
       let evtSource = null;
 
-      function appendLogLine(line) {
-        // Detect if the user is already near the bottom before appending
-        const nearBottom =
-          logOutput.scrollHeight -
-            logOutput.scrollTop -
-            logOutput.clientHeight <
-          8;
-        logOutput.textContent += line + '\n';
-        // Only scroll if checkbox is enabled AND user was already at bottom
-        if (autoscrollEl.checked && nearBottom) {
-          logOutput.scrollTop = logOutput.scrollHeight;
-        }
-      }
-
       function formatSize(bytes) {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -323,7 +312,11 @@
           `/admin/logs/sse?type=${encodeURIComponent(type)}`
         );
         evtSource.onmessage = ev => {
-          appendLogLine(ev.data);
+          logOutput.textContent += ev.data + '\n';
+          if (autoscrollEl.checked) {
+            // Append line and scroll
+            logOutput.scrollTop = logOutput.scrollHeight;
+          }
         };
         evtSource.onerror = () => {
           // Do not clear or restart manually. EventSource auto-reconnects.
