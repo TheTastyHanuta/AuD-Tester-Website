@@ -1067,21 +1067,19 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
 
   const missingFiles = [];
   const extraFiles = [];
-  const uploadedNames = uploadedFileNames.map(name => name.toLowerCase());
-  const requiredNames = requiredFiles.map(name => name.toLowerCase());
+  const uploadedNames = uploadedFileNames.map(name => name);
+  const requiredNames = requiredFiles.map(name => name);
 
   // Check for missing files
   for (const requiredFile of requiredFiles) {
-    const requiredLower = requiredFile.toLowerCase();
-    if (!uploadedNames.includes(requiredLower)) {
+    if (!uploadedNames.includes(requiredFile)) {
       missingFiles.push(requiredFile);
     }
   }
 
   // Check for extra files (files that are not required)
   for (const uploadedFile of uploadedFileNames) {
-    const uploadedLower = uploadedFile.toLowerCase();
-    if (!requiredNames.includes(uploadedLower)) {
+    if (!requiredNames.includes(uploadedFile)) {
       extraFiles.push(uploadedFile);
     }
   }
@@ -1111,13 +1109,13 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
 
   details += `Benötigte Dateien für diese Übung:\n`;
   requiredFiles.forEach(file => {
-    const uploaded = uploadedNames.includes(file.toLowerCase());
+    const uploaded = uploadedNames.includes(file);
     details += `${uploaded ? '✅' : '❌'} ${file}\n`;
   });
 
   details += `\nHochgeladene Dateien:\n`;
   uploadedFileNames.forEach(file => {
-    const isRequired = requiredNames.includes(file.toLowerCase());
+    const isRequired = requiredNames.includes(file);
     details += `${isRequired ? '✅' : '❌'} ${file}\n`;
   });
 
