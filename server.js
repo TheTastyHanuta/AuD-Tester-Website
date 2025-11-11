@@ -775,7 +775,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       };
     }
 
-    logger.debug('Docker execution completed', {
+    logger.debug('Docker execution completed successfully', {
       sessionId: sessionId,
       dockerImage: dockerImage,
       returnCode: dockerResult.error?.code || 0,
