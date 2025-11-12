@@ -13,7 +13,6 @@ const logger = require('./logger');
 dotenv.config();
 
 const exercises = require('./exercises.json');
-const { Logger } = require('winston');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -628,8 +627,8 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
       logger.debug('Executing compilation command', {
         sessionId: sessionId,
         command: command,
-        workingDir: workingDir,
         allJavaFiles: allJavaFiles,
+        workingDir: workingDir,
         exercise: exerciseConfig?.id,
       });
 
@@ -651,9 +650,9 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         } else {
           logger.debug('Compilation successful', {
             sessionId: sessionId,
+            stdout: stdout,
             files: allJavaFiles,
             workingDir: workingDir,
-            stdout: stdout,
             exercise: exerciseConfig?.id,
           });
           resolve({
@@ -667,8 +666,8 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         sessionId: sessionId,
         error: err.message,
         stack: err.stack,
-        workingDir: workingDir,
         files: allJavaFiles,
+        workingDir: workingDir,
         exercise: exerciseConfig?.id,
       });
       resolve({
@@ -695,8 +694,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
   try {
     logger.info('Starting Docker tests', {
       sessionId: sessionId,
-      exercise: exercise,
       workingDir: workingDir,
+      exercise: exercise,
     });
 
     // Docker image mapping
@@ -746,8 +745,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       sessionId: sessionId,
       command: dockerCommand.join(' '),
       dockerImage: dockerImage,
-      workingDir: workingDir,
       resultDir: resultDir,
+      workingDir: workingDir,
       exercise: exercise,
     });
 
@@ -762,8 +761,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       logger.error('Docker execution failed to return a result', {
         sessionId: sessionId,
         dockerImage: dockerImage,
-        workingDir: workingDir,
         resultDir: resultDir,
+        workingDir: workingDir,
         exercise: exercise,
       });
       return {
@@ -781,8 +780,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       returnCode: dockerResult.error?.code || 0,
       stdout: dockerResult.stdout,
       stderr: dockerResult.stderr,
-      workingDir: workingDir,
       resultDir: resultDir,
+      workingDir: workingDir,
       exercise: exercise,
     });
 
@@ -794,8 +793,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         error: dockerResult.error.message,
         stdout: dockerResult.stdout,
         stderr: dockerResult.stderr,
-        workingDir: workingDir,
         resultDir: resultDir,
+        workingDir: workingDir,
         exercise: exercise,
       });
 
@@ -819,8 +818,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         sessionId: sessionId,
         dockerImage: dockerImage,
         resultsPath: resultsJsonPath,
-        workingDir: workingDir,
         resultDir: resultDir,
+        workingDir: workingDir,
         exercise: exercise,
       });
       return {
@@ -845,8 +844,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       successful_run: resultsData.success,
       feedback: resultsData.protected_feedback_text,
       instantMessage: resultsData.instant_message,
-      workingDir: workingDir,
       resultDir: resultDir,
+      workingDir: workingDir,
       exercise: exercise,
     });
 
@@ -876,8 +875,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         sessionId: sessionId,
         dockerImage: dockerImage,
         instantStatus: instantStatus,
-        workingDir: workingDir,
         resultDir: resultDir,
+        workingDir: workingDir,
         exercise: exercise,
       });
     } else {
@@ -912,8 +911,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       error: error.message,
       stack: error.stack,
       exercise: exercise,
-      workingDir: workingDir,
       resultDir: resultDir,
+      workingDir: workingDir,
       dockerImage: dockerImage,
     });
 
@@ -949,9 +948,12 @@ async function cleanupTempDir(tempDir) {
         setTimeout(async () => {
           try {
             await fs.remove(tempDir);
-            console.log('Delayed cleanup successful');
+            logger.debug('Delayed cleanup successful', { tempDir: tempDir });
           } catch (delayedError) {
-            console.warn('Delayed cleanup failed:', delayedError.message);
+            logger.warn('Delayed cleanup failed:', {
+              tempDir: tempDir,
+              error: delayedError.message,
+            });
           }
         }, 5000);
       }
@@ -964,6 +966,11 @@ async function cleanupTempDir(tempDir) {
 async function validateUSASCIIEncoding(workingDir, fileNames) {
   const nonASCIIFiles = [];
   const problematicChars = [];
+
+  logger.debug('Starting US-ASCII encoding validation', {
+    workingDir: workingDir,
+    fileNames: fileNames,
+  });
 
   try {
     for (const fileName of fileNames) {
@@ -1052,7 +1059,12 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
       details: details,
     };
   } catch (error) {
-    console.error('Error validating encoding:', error);
+    logger.error('Error validating encoding:', {
+      error: error.message,
+      stack: error.stack,
+      workingDir: workingDir,
+      fileNames: fileNames,
+    });
     return {
       valid: false,
       details: `Error checking file encoding: ${error.message}`,
@@ -1065,66 +1077,82 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
     return { valid: true };
   }
 
-  const missingFiles = [];
-  const extraFiles = [];
-  const uploadedNames = uploadedFileNames.map(name => name);
-  const requiredNames = requiredFiles.map(name => name);
-
-  // Check for missing files
-  for (const requiredFile of requiredFiles) {
-    if (!uploadedNames.includes(requiredFile)) {
-      missingFiles.push(requiredFile);
-    }
-  }
-
-  // Check for extra files (files that are not required)
-  for (const uploadedFile of uploadedFileNames) {
-    if (!requiredNames.includes(uploadedFile)) {
-      extraFiles.push(uploadedFile);
-    }
-  }
-
-  // If there are missing files or extra files, return invalid
-  if (missingFiles.length === 0 && extraFiles.length === 0) {
-    return { valid: true };
-  }
-
-  let details = `Diese Übung erfordert das Hochladen spezifischer Dateien.\n\n`;
-
-  if (missingFiles.length > 0) {
-    details += `Dir fehlen:\n`;
-    missingFiles.forEach(file => {
-      details += `• ${file}\n`;
-    });
-    details += `\n`;
-  }
-
-  if (extraFiles.length > 0) {
-    details += `Du hast zu viele Dateien hochgeladen. Folgende Dateien sind nicht erlaubt:\n`;
-    extraFiles.forEach(file => {
-      details += `• ${file}\n`;
-    });
-    details += `\n`;
-  }
-
-  details += `Benötigte Dateien für diese Übung:\n`;
-  requiredFiles.forEach(file => {
-    const uploaded = uploadedNames.includes(file);
-    details += `${uploaded ? '✅' : '❌'} ${file}\n`;
+  logger.debug('Starting required files validation', {
+    uploadedFileNames: uploadedFileNames,
+    requiredFiles: requiredFiles,
   });
 
-  details += `\nHochgeladene Dateien:\n`;
-  uploadedFileNames.forEach(file => {
-    const isRequired = requiredNames.includes(file);
-    details += `${isRequired ? '✅' : '❌'} ${file}\n`;
-  });
+  try {
+    const missingFiles = [];
+    const extraFiles = [];
+    const uploadedNames = uploadedFileNames.map(name => name);
+    const requiredNames = requiredFiles.map(name => name);
 
-  details += `\nBitte lade nur die erforderlichen Dateien mit den genau angegebenen Dateinamen hoch.`;
+    // Check for missing files
+    for (const requiredFile of requiredFiles) {
+      if (!uploadedNames.includes(requiredFile)) {
+        missingFiles.push(requiredFile);
+      }
+    }
 
-  return {
-    valid: false,
-    details: details,
-  };
+    // Check for extra files (files that are not required)
+    for (const uploadedFile of uploadedFileNames) {
+      if (!requiredNames.includes(uploadedFile)) {
+        extraFiles.push(uploadedFile);
+      }
+    }
+
+    // If there are missing files or extra files, return invalid
+    if (missingFiles.length === 0 && extraFiles.length === 0) {
+      return { valid: true };
+    }
+
+    let details = `Diese Übung erfordert das Hochladen spezifischer Dateien.\n\n`;
+
+    if (missingFiles.length > 0) {
+      details += `Dir fehlen:\n`;
+      missingFiles.forEach(file => {
+        details += `• ${file}\n`;
+      });
+      details += `\n`;
+    }
+
+    if (extraFiles.length > 0) {
+      details += `Du hast zu viele Dateien hochgeladen. Folgende Dateien sind nicht erlaubt:\n`;
+      extraFiles.forEach(file => {
+        details += `• ${file}\n`;
+      });
+      details += `\n`;
+    }
+
+    details += `Benötigte Dateien für diese Übung:\n`;
+    requiredFiles.forEach(file => {
+      const uploaded = uploadedNames.includes(file);
+      details += `${uploaded ? '✅' : '❌'} ${file}\n`;
+    });
+
+    details += `\nHochgeladene Dateien:\n`;
+    uploadedFileNames.forEach(file => {
+      const isRequired = requiredNames.includes(file);
+      details += `${isRequired ? '✅' : '❌'} ${file}\n`;
+    });
+
+    details += `\nBitte lade nur die erforderlichen Dateien mit den genau angegebenen Dateinamen hoch.`;
+
+    return {
+      valid: false,
+      details: details,
+    };
+  } catch (error) {
+    logger.error('Error validating files:', {
+      error: error.message,
+      stack: error.stack,
+    });
+    return {
+      valid: false,
+      details: `Error checking file validation: ${error.message}`,
+    };
+  }
 }
 
 function getExerciseConfig(exerciseId) {
