@@ -431,9 +431,9 @@ app.post('/submit', (req, res) => {
 
           // If deadline is passed or submission had no success, return with detailed feedback
           if (
-            ((dockerTestResult.success === false ||
+            ((!dockerTestResult.success ||
               new Date() > new Date(exerciseConfig.deadline)) &&
-              process.env.showSecretTests === 'true') ||
+              process.env.SHOW_SECRET_TESTS === 'true') ||
             process.env.FORCE_SHOW_SECRET_TESTS === 'true'
           ) {
             return res.json({
