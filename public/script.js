@@ -166,7 +166,8 @@ document.addEventListener('DOMContentLoaded', function () {
         success: false,
         status: '⚠️',
         message: 'Network Error',
-        details: 'Failed to connect to the server. Please try again.',
+        details: `Fehler bei der Kommunikation mit dem Server. Bitte versuche es erneut. 
+          Wenn Du die Dateien aus einer ZIP-Datei hochgeladen hast, versuche bitte, die ZIP-Datei zuerst zu entpacken und dann die Dateien hochzuladen.`,
       });
     } finally {
       setLoadingState(false);
@@ -196,6 +197,14 @@ document.addEventListener('DOMContentLoaded', function () {
     } else if (result.status === '⚠️') {
       resultType = 'warning';
     }
+
+    // After displaying results, reset file input
+    fileInput.value = '';
+    fileText.textContent = 'Java-Dateien auswählen...';
+    fileDisplay.classList.remove('has-file');
+    // Optional clear file list
+    const fileList = document.querySelector('.file-list');
+    if (fileList) fileList.innerHTML = '';
 
     // Format deadline information
     let deadlineInfo = '';
@@ -299,30 +308,37 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Drag and drop functionality
-  const dropZone = document.querySelector('.file-input-display');
-
-  dropZone.addEventListener('dragover', function (e) {
-    e.preventDefault();
-    this.style.borderColor = '#667eea';
-    this.style.background = '#f0f4ff';
-  });
-
-  dropZone.addEventListener('dragleave', function (e) {
-    e.preventDefault();
-    if (!fileInput.files.length) {
-      this.style.borderColor = '#d1d5db';
-      this.style.background = '#f9fafb';
-    }
-  });
-
-  dropZone.addEventListener('drop', function (e) {
+  uploadForm.addEventListener('drop', function (e) {
     e.preventDefault();
     const files = e.dataTransfer.files;
+
+    if (!files || files.length === 0) {
+      alert(
+        'Es wurden keine Dateien erkannt. Drag&Drop aus ZIP-Archiven wird von Browsern oft nicht unterstützt.'
+      );
+      window.clientLogger.warn(
+        'No files detected in drag&drop (possibly from ZIP)'
+      );
+      // Reset file input and display
+      fileInput.value = '';
+      fileText.textContent = 'Java-Dateien auswählen...';
+      fileDisplay.classList.remove('has-file');
+      const existingList = document.querySelector('.file-list');
+      if (existingList) {
+        existingList.remove();
+      }
+      return;
+    }
 
     // Filter for .java files only
     const javaFiles = Array.from(files).filter(file =>
       file.name.toLowerCase().endsWith('.java')
     );
+
+    window.clientLogger.debug('Files dropped in drag&drop', {
+      totalFiles: files.length,
+      javaFiles: javaFiles.length,
+    });
 
     if (javaFiles.length > 0) {
       // Create a new FileList-like object
@@ -333,9 +349,15 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
       alert('Bitte nur gültige Java-Dateien (.java-Erweiterung) ablegen');
       window.clientLogger.warn('Non-Java file dropped in drag&drop');
+      // Reset file input and display
+      fileInput.value = '';
+      fileText.textContent = 'Java-Dateien auswählen...';
+      fileDisplay.classList.remove('has-file');
+      // Remove file list if present
+      const existingList = document.querySelector('.file-list');
+      if (existingList) {
+        existingList.remove();
+      }
     }
-
-    this.style.borderColor = '#d1d5db';
-    this.style.background = '#f9fafb';
   });
 });
