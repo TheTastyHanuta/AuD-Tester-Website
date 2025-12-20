@@ -17,6 +17,12 @@ const exercises = require('./exercises.json');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.BIND_HOST || '127.0.0.1';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// Allowed origins for CORS and client logging
+const allowedOrigins = IS_PRODUCTION
+  ? ['https://aud-mt.de']
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://aud-mt.de'];
 
 app.set('trust proxy', 1);
 
@@ -35,19 +41,83 @@ app.use(
   })
 );
 
-/*
-This is currently broken because im using inline scripts for the log viewer SSE. Maybe i will fix this later and move the js into a separate file.
+// Helmet configuration for security headers
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'same-site' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: IS_PRODUCTION
+          ? ["'self'", 'https://aud-mt.de', 'wss:']
+          : [
+              "'self'",
+              'https://aud-mt.de',
+              'http://localhost:3000',
+              'ws:',
+              'wss:',
+            ],
+        fontSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: IS_PRODUCTION ? [] : null,
+      },
+    },
   })
 );
-*/
 
-app.use(cors());
+// CSP for /admin/logs route
+app.use(
+  '/admin/logs',
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: IS_PRODUCTION
+        ? ["'self'", 'https://aud-mt.de', 'wss:']
+        : [
+            "'self'",
+            'https://aud-mt.de',
+            'http://localhost:3000',
+            'ws:',
+            'wss:',
+          ],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: IS_PRODUCTION ? [] : null,
+    },
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static('public', { dotfiles: 'deny' }));
+
+// Cors configuration
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, Postman, same-origin, or direct navigation)
+      // Some browsers send "null" as a string instead of undefined
+      if (!origin || origin === 'null') {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn('CORS blocked request', { origin, ip: this?.ip });
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // HTTP request logging with session ID
 morgan.token('sessionId', function (req, res) {
@@ -1178,6 +1248,60 @@ async function checkJavaVersion() {
 
 app.get('/exercises', (req, res) => {
   res.json(exercises);
+});
+
+// Client-side logging endpoint
+app.options('/client-log', (req, res) => {
+  const origin = req.get('Origin');
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    res.sendStatus(204);
+  } else {
+    logger.warn('Client-log OPTIONS blocked', { origin, ip: req.ip });
+    res.sendStatus(403);
+  }
+});
+
+app.post('/client-log', (req, res) => {
+  const origin = req.get('Origin');
+  if (origin && !allowedOrigins.includes(origin)) {
+    logger.warn('Client-log POST blocked', { origin, ip: req.ip });
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+  res.header('Access-Control-Allow-Origin', origin);
+  const {
+    level = 'info',
+    message = '',
+    meta = {},
+    url,
+    userAgent,
+    timestamp,
+  } = req.body || {};
+  // Sanitize level
+  const allowedLevels = ['info', 'warn', 'error', 'debug'];
+  const logLevel = allowedLevels.includes(level) ? level : 'info';
+  // Compose log meta
+  const logMeta = {
+    ...meta,
+    url,
+    userAgent,
+    timestamp,
+    ip: req.ip,
+    sessionId: req.session?.id || 'no-session',
+  };
+  try {
+    logger[logLevel](message, logMeta);
+  } catch (e) {
+    logger.error('Failed to log client message', {
+      error: e.message,
+      message,
+      logLevel,
+      logMeta,
+    });
+  }
+  res.json({ ok: true });
 });
 
 // Check Java version and start server

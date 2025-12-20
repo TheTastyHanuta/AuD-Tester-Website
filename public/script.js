@@ -1,4 +1,37 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // Client-side logger: sends logs to the server
+  window.clientLogger = {
+    log: function (level, message, meta = {}) {
+      fetch('/client-log', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          level,
+          message,
+          meta,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(() => {
+        /* ignore errors */
+      });
+    },
+    info: function (message, meta) {
+      this.log('info', message, meta);
+    },
+    warn: function (message, meta) {
+      this.log('warn', message, meta);
+    },
+    error: function (message, meta) {
+      this.log('error', message, meta);
+    },
+    debug: function (message, meta) {
+      this.log('debug', message, meta);
+    },
+  };
   const uploadForm = document.getElementById('uploadForm');
   const exerciseSelect = document.getElementById('exercise');
   const fileInput = document.getElementById('javaFiles');
@@ -67,6 +100,9 @@ document.addEventListener('DOMContentLoaded', function () {
       console.error('Error loading exercises:', error);
       exerciseSelect.innerHTML =
         '<option value="">Fehler beim Laden der Übungen</option>';
+      window.clientLogger.error('Error loading exercises', {
+        error: error?.message || error,
+      });
     }
   }
 
@@ -74,11 +110,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // Validate inputs
     if (!exerciseSelect.value) {
       alert('Bitte wähle eine Übung aus');
+      window.clientLogger.warn('No exercise selected on submit');
       return;
     }
 
     if (!fileInput.files.length) {
       alert('Bitte wähle mindestens eine Java-Datei aus');
+      window.clientLogger.warn('No Java file selected on submit');
       return;
     }
 
@@ -89,6 +127,9 @@ document.addEventListener('DOMContentLoaded', function () {
         alert(
           `Bitte wähle nur gültige Java-Dateien (.java-Erweiterung) aus. Ungültige Datei: ${fileName}`
         );
+        window.clientLogger.warn('Invalid file extension selected', {
+          fileName,
+        });
         return;
       }
     }
@@ -118,6 +159,9 @@ document.addEventListener('DOMContentLoaded', function () {
       displayResults(result);
     } catch (error) {
       console.error('Error submitting code:', error);
+      window.clientLogger.error('Error submitting code', {
+        error: error?.message || error,
+      });
       displayResults({
         success: false,
         status: '⚠️',
@@ -288,6 +332,7 @@ document.addEventListener('DOMContentLoaded', function () {
       fileInput.dispatchEvent(new Event('change'));
     } else {
       alert('Bitte nur gültige Java-Dateien (.java-Erweiterung) ablegen');
+      window.clientLogger.warn('Non-Java file dropped in drag&drop');
     }
 
     this.style.borderColor = '#d1d5db';
