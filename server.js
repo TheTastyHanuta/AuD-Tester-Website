@@ -48,19 +48,27 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", 'https://www.googletagmanager.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
         imgSrc: ["'self'", 'data:'],
         connectSrc: IS_PRODUCTION
-          ? ["'self'", 'https://aud-mt.de', 'wss:']
+          ? [
+              "'self'",
+              'https://aud-mt.de',
+              'wss:',
+              'https://region1.google-analytics.com',
+              'https://www.google-analytics.com',
+            ]
           : [
               "'self'",
               'https://aud-mt.de',
               'http://localhost:3000',
               'ws:',
               'wss:',
+              'https://region1.google-analytics.com',
+              'https://www.google-analytics.com',
             ],
-        fontSrc: ["'self'", 'data:'],
         objectSrc: ["'none'"],
         frameAncestors: ["'self'"],
         upgradeInsecureRequests: IS_PRODUCTION ? [] : null,
@@ -75,8 +83,12 @@ app.use(
   helmet.contentSecurityPolicy({
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: [
+        "'self'",
+        'https://www.googletagmanager.com',
+        "'unsafe-inline'",
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc: ["'self'", 'data:'],
       connectSrc: IS_PRODUCTION
         ? ["'self'", 'https://aud-mt.de', 'wss:']
@@ -87,7 +99,7 @@ app.use(
             'ws:',
             'wss:',
           ],
-      fontSrc: ["'self'", 'data:'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
       objectSrc: ["'none'"],
       frameAncestors: ["'self'"],
       upgradeInsecureRequests: IS_PRODUCTION ? [] : null,
