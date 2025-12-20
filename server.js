@@ -616,7 +616,7 @@ app.post('/submit', (req, res) => {
           error: 'Internal server error',
           status: '⚠️',
           message:
-            'An internal error occurred while processing your submission',
+            'An internal error occurred while processing your submission. Please try again later.',
         });
       }
     } finally {
