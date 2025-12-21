@@ -510,10 +510,10 @@ app.post('/submit', (req, res) => {
             points: dockerTestResult.points,
           });
 
-          // If deadline is passed or submission had no success, return with detailed feedback
+          // If deadline is passed and submission passed return full feedback with points
           if (
-            ((!dockerTestResult.success ||
-              new Date() > new Date(exerciseConfig.deadline)) &&
+            (new Date() > new Date(exerciseConfig.deadline) &&
+              dockerTestResult.success &&
               process.env.SHOW_SECRET_TESTS === 'true') ||
             process.env.FORCE_SHOW_SECRET_TESTS === 'true'
           ) {
@@ -522,20 +522,34 @@ app.post('/submit', (req, res) => {
               status: dockerTestResult.status,
               message: dockerTestResult.message,
               details: dockerTestResult.details,
+              points: dockerTestResult.points,
               deadline: exerciseConfig.deadline,
-              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
+              encodingWarning: !encodingCheck.valid
+                ? encodingCheck.details
+                : null,
+            });
+            // If submission failed return with details but no points
+          } else if (
+            !dockerTestResult.success &&
+            process.env.SHOW_SECRET_TESTS === 'true'
+          ) {
+            return res.json({
+              success: dockerTestResult.success,
+              status: dockerTestResult.status,
+              message: dockerTestResult.message,
+              details: dockerTestResult.details,
+              deadline: exerciseConfig.deadline,
               encodingWarning: !encodingCheck.valid
                 ? encodingCheck.details
                 : null,
             });
           } else {
-            // If deadline is not passed and submission was successful, return without detailed feedback
+            // If everything is fine and deadline is not passed return without detailed feedback
             return res.json({
               success: dockerTestResult.success,
               status: dockerTestResult.status,
               message: dockerTestResult.message,
               deadline: exerciseConfig.deadline,
-              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
               encodingWarning: !encodingCheck.valid
                 ? encodingCheck.details
                 : null,
@@ -564,6 +578,7 @@ app.post('/submit', (req, res) => {
               message:
                 'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)',
               details: compilationResult.error,
+              deadline: exerciseConfig.deadline,
               encodingWarning: !encodingCheck.valid
                 ? encodingCheck.details
                 : null,
@@ -581,7 +596,6 @@ app.post('/submit', (req, res) => {
               details:
                 'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
               deadline: exerciseConfig.deadline,
-              deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
               encodingWarning: !encodingCheck.valid
                 ? encodingCheck.details
                 : null,
@@ -1283,14 +1297,7 @@ app.post('/client-log', (req, res) => {
     return res.status(403).json({ error: 'Origin not allowed' });
   }
   res.header('Access-Control-Allow-Origin', origin);
-  const {
-    level = 'info',
-    message = '',
-    meta = {},
-    url,
-    userAgent,
-    timestamp,
-  } = req.body || {};
+  const { level = 'info', message = '', meta = {}, url } = req.body || {};
   // Sanitize level
   const allowedLevels = ['info', 'warn', 'error', 'debug'];
   const logLevel = allowedLevels.includes(level) ? level : 'info';
@@ -1298,8 +1305,6 @@ app.post('/client-log', (req, res) => {
   const logMeta = {
     ...meta,
     url,
-    userAgent,
-    timestamp,
     ip: req.ip,
     sessionId: req.session?.id || 'no-session',
   };

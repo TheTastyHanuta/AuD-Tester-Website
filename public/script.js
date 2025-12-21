@@ -28,8 +28,6 @@ document.addEventListener('DOMContentLoaded', function () {
           message,
           meta,
           url: window.location.href,
-          userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString(),
         }),
       }).catch(() => {
         /* ignore errors */
@@ -218,9 +216,9 @@ document.addEventListener('DOMContentLoaded', function () {
     fileInput.value = '';
     fileText.textContent = 'Java-Dateien auswählen...';
     fileDisplay.classList.remove('has-file');
-    // Optional clear file list
+    // Remove file list box if present
     const fileList = document.querySelector('.file-list');
-    if (fileList) fileList.innerHTML = '';
+    if (fileList) fileList.remove();
 
     // Format deadline information
     let deadlineInfo = '';
@@ -364,7 +362,10 @@ document.addEventListener('DOMContentLoaded', function () {
       fileInput.dispatchEvent(new Event('change'));
     } else {
       alert('Bitte nur gültige Java-Dateien (.java-Erweiterung) ablegen');
-      window.clientLogger.warn('Non-Java file dropped in drag&drop');
+      window.clientLogger.warn('Non-Java file dropped in drag&drop', {
+        totalFiles: files.length,
+        javaFiles: javaFiles.length,
+      });
       // Reset file input and display
       fileInput.value = '';
       fileText.textContent = 'Java-Dateien auswählen...';

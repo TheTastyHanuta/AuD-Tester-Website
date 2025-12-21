@@ -294,16 +294,6 @@ small {
   display: none;
 }
 
-.result-points {
-  margin-top: 15px;
-  padding: 10px 15px;
-  background: #2b6cb0;
-  color: white;
-  border-radius: 6px;
-  font-weight: 600;
-  text-align: center;
-}
-
 .deadline-info {
   margin: 15px 0;
   padding: 12px;
@@ -326,15 +316,15 @@ small {
 .points-info {
   margin: 15px 0;
   padding: 12px;
-  background: #1a2e1a;
+  background: #1a202c;
   border-radius: 6px;
-  border-left: 3px solid #38a169;
+  border-left: 3px solid #718096;
   font-size: 14px;
-  color: #48bb78;
+  color: #a0aec0;
 }
 
 .points-info strong {
-  color: #38a169;
+  color: #e2e8f0;
   font-weight: 600;
 }
 
