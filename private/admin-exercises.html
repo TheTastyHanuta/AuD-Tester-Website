@@ -12,7 +12,7 @@
     />
     <style>
       body {
-        background: #0f172a;
+        background: #0f0f0f;
         color: #e2e8f0;
         font-family: 'Inter', sans-serif;
         padding: 20px;
@@ -107,6 +107,10 @@
         font-size: 14px;
         width: 100%;
         max-width: 250px;
+      }
+      .deadline-input::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
       }
       .deadline-input:focus {
         outline: none;
