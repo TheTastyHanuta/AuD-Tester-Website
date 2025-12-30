@@ -42,13 +42,21 @@ A web-based Java code testing platform for Algorithms and Data Structures course
    npm install
    ```
 
-4. Ensure Java is installed and accessible via command line:
+4. Copy the example exercises file to create your local exercises.json:
+
+   ```bash
+   cp exercises.example.json exercises.json
+   ```
+
+   This will create your local exercises.json, which is ignored by git. You can safely modify it without affecting the repository or other users.
+
+5. Ensure Java is installed and accessible via command line:
 
    ```bash
    javac -version
    ```
 
-5. Install Perl module JSON::XS
+6. Install Perl module JSON::XS
 
    ```bash
    sudo apt-get install libjson-xs-perl
