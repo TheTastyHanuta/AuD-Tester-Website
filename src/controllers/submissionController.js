@@ -2,7 +2,6 @@ const path = require('path');
 const fs = require('fs-extra');
 const logger = require('../../logger');
 const { createScopedLogger } = require('../utils/loggerHelper');
-const exercises = require('../../exercises.json');
 const { runDockerTests } = require('../services/dockerService');
 const { compileJavaFiles } = require('../services/compilationService');
 const {
@@ -11,6 +10,8 @@ const {
 } = require('../services/validationService');
 const upload = require('../middleware/uploadMiddleware');
 const config = require('../config/config');
+
+const EXERCISES_FILE = path.join(__dirname, '../../exercises.json');
 
 async function cleanupTempDir(tempDir) {
   try {
@@ -48,7 +49,8 @@ async function cleanupTempDir(tempDir) {
   }
 }
 
-function getExerciseConfig(exerciseId) {
+async function getExerciseConfig(exerciseId) {
+  const exercises = await fs.readJson(EXERCISES_FILE);
   return exercises.find(ex => ex.id === exerciseId);
 }
 
@@ -99,7 +101,7 @@ async function handleSubmission(req, res) {
         }
 
         // If no exercise selected, return early
-        const exerciseConfig = getExerciseConfig(exercise);
+        const exerciseConfig = await getExerciseConfig(exercise);
         if (!exerciseConfig) {
           return res.json({
             success: false,

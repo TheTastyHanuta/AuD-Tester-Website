@@ -8,6 +8,10 @@ const {
   listLogFiles,
   getLatestLogFile,
 } = require('../services/logService');
+const {
+  getAllExercises,
+  updateExerciseDeadline,
+} = require('../services/exerciseService');
 
 async function showLoginPage(req, res) {
   if (!config.LOG_VIEWER_PASSWORD) {
@@ -56,6 +60,10 @@ async function handleLogout(req, res) {
 
 async function showLogsPage(req, res) {
   res.sendFile(path.join(__dirname, '../../private', 'admin-logs.html'));
+}
+
+async function showExercisesPage(req, res) {
+  res.sendFile(path.join(__dirname, '../../private', 'admin-exercises.html'));
 }
 
 async function listLogs(req, res) {
@@ -173,12 +181,59 @@ async function streamLogSSE(req, res) {
   });
 }
 
+async function getExercises(req, res) {
+  try {
+    const exercises = await getAllExercises();
+    res.json({ exercises });
+  } catch (error) {
+    logger.error('Error fetching exercises for admin', {
+      error: error.message,
+    });
+    res.status(500).json({ error: 'Failed to fetch exercises' });
+  }
+}
+
+async function updateDeadline(req, res) {
+  const { id } = req.params;
+  const { deadline } = req.body;
+
+  if (!deadline) {
+    return res.status(400).json({ error: 'Deadline is required' });
+  }
+
+  try {
+    const updatedExercise = await updateExerciseDeadline(id, deadline);
+    logger.info('Admin updated exercise deadline', {
+      exerciseId: id,
+      deadline,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+    res.json({
+      success: true,
+      exercise: updatedExercise,
+      message: 'Deadline updated successfully',
+    });
+  } catch (error) {
+    logger.error('Failed to update exercise deadline', {
+      error: error.message,
+      exerciseId: id,
+      deadline,
+      ip: req.ip,
+    });
+    res.status(400).json({ error: error.message });
+  }
+}
+
 module.exports = {
   showLoginPage,
   handleLogin,
   handleLogout,
   showLogsPage,
+  showExercisesPage,
   listLogs,
   getLogFile,
   streamLogSSE,
+  getExercises,
+  updateDeadline,
 };

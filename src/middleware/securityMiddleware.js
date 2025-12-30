@@ -52,11 +52,33 @@ function configureHelmet(app) {
     helmet.contentSecurityPolicy({
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          'https://www.googletagmanager.com',
-          "'unsafe-inline'",
-        ],
+        scriptSrc: ["'self'", 'https://www.googletagmanager.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: config.IS_PRODUCTION
+          ? ["'self'", 'https://aud-mt.de', 'wss:']
+          : [
+              "'self'",
+              'https://aud-mt.de',
+              'http://localhost:3000',
+              'ws:',
+              'wss:',
+            ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'self'"],
+        upgradeInsecureRequests: config.IS_PRODUCTION ? [] : null,
+      },
+    })
+  );
+
+  // CSP for /admin/exercises-page route
+  app.use(
+    '/admin/exercises-page',
+    helmet.contentSecurityPolicy({
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", 'https://www.googletagmanager.com'],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         imgSrc: ["'self'", 'data:'],
         connectSrc: config.IS_PRODUCTION

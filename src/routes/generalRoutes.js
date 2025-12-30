@@ -2,11 +2,13 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const logger = require('../../logger');
-const exercises = require('../../exercises.json');
+const fs = require('fs-extra');
 const {
   handleClientLogOptions,
   handleClientLog,
 } = require('../controllers/clientLogController');
+
+const EXERCISES_FILE = path.join(__dirname, '../../exercises.json');
 
 router.get('/', (req, res) => {
   logger.info('Main page accessed', {
@@ -17,8 +19,14 @@ router.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public', 'index.html'));
 });
 
-router.get('/exercises', (req, res) => {
-  res.json(exercises);
+router.get('/exercises', async (req, res) => {
+  try {
+    const exercises = await fs.readJson(EXERCISES_FILE);
+    res.json(exercises);
+  } catch (error) {
+    logger.error('Error reading exercises', { error: error.message });
+    res.status(500).json({ error: 'Failed to load exercises' });
+  }
 });
 
 router.options('/client-log', handleClientLogOptions);

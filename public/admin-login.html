@@ -109,10 +109,6 @@
       </form>
       <p class="muted">Access is restricted.</p>
     </div>
-    <script>
-      const params = new URLSearchParams(location.search);
-      const ret = params.get('return') || '/admin/logs';
-      document.getElementById('returnInput').value = ret;
-    </script>
+    <script src="/admin-login.js"></script>
   </body>
 </html>
