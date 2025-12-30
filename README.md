@@ -4,6 +4,8 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 
 ## Features
 
+### Website Features
+
 - **Multi-file Upload Support**: Upload multiple Java files for complex exercises
 - **Automated Compilation Testing**: Instant feedback on compilation errors with detailed error messages
 - **Exercise Management**: Configurable exercises with points and deadlines
@@ -12,6 +14,23 @@ A web-based Java code testing platform for Algorithms and Data Structures course
 - **Clean Results Display**: Clear success/failure indicators with detailed feedback
 - **Temporary File Management**: Secure handling and cleanup of uploaded files
 - **Cross-platform Compatibility**: Works on Windows, macOS, and Linux
+
+### Admin Log Viewer & Exercise Manager
+
+A password-protected log viewer is available to inspect Winston rotated logs without SSH. Additionally, an exercise manager allows modifying exercises through a web interface.
+
+Setup:
+
+- Set environment variables:
+  - `SESSION_SECRET` — strong random string
+  - `LOG_VIEWER_PASSWORD` — password for admin login
+
+Usage:
+
+- Visit `/admin/login`, sign in, then go to `/admin/logs`.
+- Choose among combined, app, or error logs.
+- Live stream uses Server-Sent Events (tail -F). Older rotated logs can be viewed or downloaded.
+- Exercise manager at `/admin/exercises` allows editing exercises with changes saved to `exercises.json`.
 
 ## Usage and Development
 
@@ -140,23 +159,6 @@ Example exercise configuration:
 }
 ```
 
-## Project Structure
-
-```bash
-AuD Tester Website/
-├── server.js              # Main server application
-├── package.json            # Node.js dependencies
-├── exercises.json          # Exercise configuration
-├── public/                 # Frontend files
-│   ├── index.html         # Main web interface
-│   ├── script.js          # Client-side JavaScript
-│   └── styles.css         # Styling
-├── tests/                  # Test files and JAR dependencies
-├── uploads/               # Temporary upload directory
-├── provided/               # Provided files for exercises
-└── temp/                  # Temporary compilation directory
-```
-
 ## How It Works
 
 1. **File Upload**: Students upload Java files through the web interface
@@ -166,98 +168,6 @@ AuD Tester Website/
 5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results via a docker container
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
-
-## Deployment on Oracle Cloud VM with Cloudflare Tunnel
-
-I am hosting this application on an Oracle Cloud VM and using Cloudflare Tunnel for secure access.
-
-### Install Dependencies
-
-1. **Update System**:
-
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   ```
-
-2. **Install Node.js**:
-
-   ```bash
-   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-   sudo apt-get install -y nodejs
-   ```
-
-3. **Install Java**:
-
-   ```bash
-   sudo apt install default-jdk -y
-   ```
-
-4. **Install Git**:
-
-   ```bash
-   sudo apt install git -y
-   ```
-
-5. **Install Docker**:
-
-   ```bash
-   sudo apt install docker.io -y
-   ```
-
-6. **Install Perl JSON::XS Module**:
-
-   ```bash
-   sudo apt-get install libjson-xs-perl
-   ```
-
-### Deploy Application
-
-1. **Clone Repository**:
-
-   ```bash
-   git clone https://github.com/TheTastyHanuta/AuD-Tester-Website
-   cd AuD-Tester-Website
-   ```
-
-2. **Install Dependencies**:
-
-   ```bash
-   npm install
-   ```
-
-3. Create Docker Images for exercises as described in the [Create Docker Images for exercises](#create-docker-images-for-exercises) section.
-
-4. **Test Application**:
-
-   ```bash
-   node server.js
-   ```
-
-5. **Setup Process Manager** (PM2 for production):
-
-   ```bash
-   sudo npm install -g pm2
-   pm2 start server.js --name "aud-tester"
-   pm2 startup
-   pm2 save
-   ```
-
-### Monitoring and Maintenance
-
-1. **Check Application Status**:
-
-   ```bash
-   pm2 status
-   pm2 logs aud-tester
-   ```
-
-2. **Update Application**:
-
-   ```bash
-   git pull origin main
-   npm install
-   pm2 restart aud-tester
-   ```
 
 ## Contributing
 
@@ -290,19 +200,3 @@ When reporting issues, please include:
 ## License
 
 This project is open source and available under MIT License.
-
-## Admin Log Viewer
-
-A password-protected log viewer is available to inspect Winston rotated logs without SSH.
-
-Setup:
-
-- Set environment variables:
-  - `SESSION_SECRET` — strong random string
-  - `LOG_VIEWER_PASSWORD` — password for admin login
-
-Usage:
-
-- Visit `/admin/login`, sign in, then go to `/admin/logs`.
-- Choose among combined, app, or error logs.
-- Live stream uses Server-Sent Events (tail -F). Older rotated logs can be viewed or downloaded.
