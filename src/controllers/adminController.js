@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs-extra');
 const { spawn } = require('child_process');
+const crypto = require('crypto');
 const logger = require('../../logger');
 const config = require('../config/config');
 const {
@@ -12,6 +13,28 @@ const {
   getAllExercises,
   updateExerciseDeadline,
 } = require('../services/exerciseService');
+
+function sanitizeReturnPath(ret) {
+  if (typeof ret !== 'string') return '/admin/logs';
+  if (!ret.startsWith('/')) return '/admin/logs';
+  if (ret.startsWith('//')) return '/admin/logs';
+  if (ret.includes('\n') || ret.includes('\r')) return '/admin/logs';
+  if (!ret.startsWith('/admin')) return '/admin/logs';
+  return ret;
+}
+
+function isValidPassword(input, expected) {
+  if (typeof input !== 'string' || typeof expected !== 'string') return false;
+
+  const inputBuffer = Buffer.from(input, 'utf8');
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+
+  if (inputBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(inputBuffer, expectedBuffer);
+}
 
 async function showLoginPage(req, res) {
   if (!config.LOG_VIEWER_PASSWORD) {
@@ -30,22 +53,40 @@ async function handleLogin(req, res) {
       .status(503)
       .send('Log viewer disabled. Missing LOG_VIEWER_PASSWORD');
   }
+
   const { password } = req.body || {};
-  const ok =
-    typeof password === 'string' && password === config.LOG_VIEWER_PASSWORD;
+  const returnTo = sanitizeReturnPath(
+    (req.body && req.body.return) || req.query.return
+  );
+  const ok = isValidPassword(password, config.LOG_VIEWER_PASSWORD);
+
   logger.info('Admin login attempt', {
     ip: req.ip,
     userAgent: req.get('User-Agent'),
     success: ok,
   });
+
   if (!ok) {
     return res.status(401).send('Unauthorized');
   }
-  req.session.isLogAdmin = true;
-  // Prefer body.return, fallback to query, ensure same-origin relative path
-  let ret = (req.body && req.body.return) || req.query.return || '/admin/logs';
-  if (typeof ret !== 'string' || ret.startsWith('http')) ret = '/admin/logs';
-  return res.redirect(ret);
+
+  if (!req.session) {
+    logger.error('Session missing during admin login', { ip: req.ip });
+    return res.status(500).send('Session unavailable');
+  }
+
+  req.session.regenerate(error => {
+    if (error) {
+      logger.error('Failed to regenerate admin session', {
+        ip: req.ip,
+        error: error.message,
+      });
+      return res.status(500).send('Login failed');
+    }
+
+    req.session.isLogAdmin = true;
+    return res.redirect(returnTo);
+  });
 }
 
 async function handleLogout(req, res) {

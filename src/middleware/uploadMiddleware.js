@@ -2,6 +2,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
 
+const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB per file
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads';
@@ -17,11 +19,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE_BYTES,
+    files: 20,
+  },
   fileFilter: (req, file, cb) => {
-    if (
-      file.mimetype === 'text/x-java-source' ||
-      file.originalname.endsWith('.java')
-    ) {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (ext === '.java') {
       cb(null, true);
     } else {
       cb(new Error('Nur Java-Dateien sind erlaubt!'), false);

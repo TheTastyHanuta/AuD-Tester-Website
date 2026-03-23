@@ -16,9 +16,12 @@ app.set('trust proxy', 1);
 // Session configuration
 app.use(
   session({
+    name: 'aud.sid',
     secret: config.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
+    unset: 'destroy',
+    proxy: config.IS_PRODUCTION,
     cookie: {
       secure: config.IS_PRODUCTION,
       httpOnly: true,
@@ -32,8 +35,8 @@ app.use(
 configureHelmet(app);
 
 // Body parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '300kb' }));
+app.use(express.urlencoded({ extended: false, limit: '300kb' }));
 app.use(express.static('public', { dotfiles: 'deny' }));
 
 // CORS configuration

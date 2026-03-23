@@ -5,6 +5,80 @@ const logger = require('../../logger');
 
 const allowedOrigins = config.getAllowedOrigins();
 
+function normalizeOrigin(value) {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/\/$/, '').toLowerCase();
+}
+
+function getHostCandidates(req) {
+  const candidates = new Set();
+  const host = req.get('x-forwarded-host') || req.get('host');
+
+  if (!host) {
+    return candidates;
+  }
+
+  const protocols = new Set();
+  const forwardedProto = req.get('x-forwarded-proto');
+
+  if (forwardedProto) {
+    forwardedProto
+      .split(',')
+      .map(p => p.trim().toLowerCase())
+      .filter(Boolean)
+      .forEach(p => protocols.add(p));
+  }
+
+  if (req.protocol) {
+    protocols.add(req.protocol.toLowerCase());
+  }
+
+  // Keep both as fallback in case proxy protocol headers are inconsistent.
+  protocols.add('https');
+  protocols.add('http');
+
+  for (const proto of protocols) {
+    candidates.add(normalizeOrigin(`${proto}://${host}`));
+  }
+
+  return candidates;
+}
+
+function isLikelyTopLevelNavigation(req) {
+  const mode = (req.get('sec-fetch-mode') || '').toLowerCase();
+  const dest = (req.get('sec-fetch-dest') || '').toLowerCase();
+  const site = (req.get('sec-fetch-site') || '').toLowerCase();
+  const accept = (req.get('accept') || '').toLowerCase();
+
+  const safeMethod = ['GET', 'HEAD', 'POST'].includes(req.method);
+  const navigateSignal =
+    mode === 'navigate' ||
+    dest === 'document' ||
+    (accept.includes('text/html') && !accept.includes('application/json'));
+  const siteSignal = !site || ['same-origin', 'same-site', 'none'].includes(site);
+
+  return safeMethod && navigateSignal && siteSignal;
+}
+
+function isAllowedOrigin(req, origin) {
+  const normalizedOrigin = normalizeOrigin(origin);
+
+  if (!normalizedOrigin) {
+    return true;
+  }
+
+  if (normalizedOrigin === 'null') {
+    // Some browsers/privacy modes send Origin: null on top-level navigations/forms.
+    return isLikelyTopLevelNavigation(req);
+  }
+
+  if (allowedOrigins.map(normalizeOrigin).includes(normalizedOrigin)) {
+    return true;
+  }
+
+  return getHostCandidates(req).has(normalizedOrigin);
+}
+
 function configureHelmet(app) {
   // Main Helmet configuration for security headers
   app.use(
@@ -100,21 +174,32 @@ function configureHelmet(app) {
 }
 
 function configureCors(app) {
+  app.use((req, res, next) => {
+    const origin = req.get('Origin');
+
+    if (isAllowedOrigin(req, origin)) {
+      return next();
+    }
+
+    logger.warn('CORS blocked request', {
+      origin,
+      method: req.method,
+      path: req.originalUrl,
+      host: req.get('host'),
+      forwardedHost: req.get('x-forwarded-host'),
+      forwardedProto: req.get('x-forwarded-proto'),
+      fetchMode: req.get('sec-fetch-mode'),
+      fetchDest: req.get('sec-fetch-dest'),
+      fetchSite: req.get('sec-fetch-site'),
+      ip: req.ip,
+    });
+
+    return res.status(403).send('Not allowed by CORS');
+  });
+
   app.use(
     cors({
-      origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, Postman, same-origin, or direct navigation)
-        // Some browsers send "null" as a string instead of undefined
-        if (!origin || origin === 'null') {
-          return callback(null, true);
-        }
-        if (allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          logger.warn('CORS blocked request', { origin, ip: this?.ip });
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+      origin: true,
       credentials: true,
     })
   );

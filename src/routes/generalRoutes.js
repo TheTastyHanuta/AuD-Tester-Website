@@ -7,6 +7,7 @@ const {
   handleClientLogOptions,
   handleClientLog,
 } = require('../controllers/clientLogController');
+const { clientLogLimiter } = require('../middleware/rateLimitMiddleware');
 
 const EXERCISES_FILE = path.join(__dirname, '../../exercises.json');
 
@@ -30,6 +31,6 @@ router.get('/exercises', async (req, res) => {
 });
 
 router.options('/client-log', handleClientLogOptions);
-router.post('/client-log', handleClientLog);
+router.post('/client-log', clientLogLimiter, handleClientLog);
 
 module.exports = router;
