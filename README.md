@@ -36,7 +36,7 @@ Usage:
 
 ### Requirements
 
-- Node.js (version 14 or higher)
+- Node.js (version 24 or higher)
 - Java Development Kit (JDK 8 or higher)
 - npm or yarn package manager
 - Docker (for running JUnit tests in a container)
@@ -94,6 +94,28 @@ node server.js
 ```
 
 The application will start on `http://localhost:3000` by default.
+
+### Starting the Background Worker
+
+Submissions are queued in a local SQLite database at `data/submission-jobs.sqlite`.
+Run the web server and worker as separate processes:
+
+```bash
+npm run start:prod
+npm run worker:prod
+```
+
+Run one worker process for this local SQLite queue.
+
+For development, use:
+
+```bash
+npm run start:dev
+npm run worker
+```
+
+The upload endpoint returns `202 Accepted` with a `jobId` and `statusUrl`. Poll
+`GET /api/status/:jobId` until the job status is `completed` or `failed`.
 
 #### Starting in Production Mode
 

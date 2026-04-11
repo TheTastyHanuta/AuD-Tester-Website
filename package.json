@@ -6,10 +6,13 @@
   "scripts": {
     "start:dev": "node server.js",
     "start:prod": "NODE_ENV=production node server.js",
+    "worker": "node worker.js",
+    "worker:prod": "NODE_ENV=production node worker.js",
     "dev": "nodemon server.js",
     "format": "prettier --write ."
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.22.1",

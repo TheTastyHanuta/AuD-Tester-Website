@@ -4,6 +4,7 @@ node_modules/
 # Temporary directories
 uploads/
 temp/
+data/
 
 # IDE files
 .vscode/
