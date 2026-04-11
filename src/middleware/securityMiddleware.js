@@ -55,7 +55,8 @@ function isLikelyTopLevelNavigation(req) {
     mode === 'navigate' ||
     dest === 'document' ||
     (accept.includes('text/html') && !accept.includes('application/json'));
-  const siteSignal = !site || ['same-origin', 'same-site', 'none'].includes(site);
+  const siteSignal =
+    !site || ['same-origin', 'same-site', 'none'].includes(site);
 
   return safeMethod && navigateSignal && siteSignal;
 }

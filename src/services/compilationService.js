@@ -105,12 +105,14 @@ async function checkJavaVersion() {
     exec('java -version', (error, stdout, stderr) => {
       const output = stderr || stdout;
       const versionLine = output.split('\n')[0];
-      console.log('Java version:', versionLine);
+      logger.info('Java version detected', { version: versionLine });
 
       // Check if Java 8 is available
       exec('javac -version', (error, stdout, stderr) => {
         const javacOutput = stderr || stdout;
-        console.log('Java compiler version:', javacOutput.trim());
+        logger.info('Java compiler version detected', {
+          version: javacOutput.trim(),
+        });
         resolve();
       });
     });

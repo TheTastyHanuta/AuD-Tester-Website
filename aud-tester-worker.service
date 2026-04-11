@@ -1,6 +1,6 @@
 [Unit]
-Description=AuD Tester Website
-After=network.target docker.service
+Description=AuD Tester Background Worker
+After=network.target docker.service aud-tester.service
 Wants=docker.service
 
 [Service]
@@ -9,22 +9,15 @@ User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/AuD-Tester-Website
 
-# Check PATH so Docker is found
 Environment=PATH=/home/ubuntu/.nvm/versions/node/v24.14.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# Set env here or in .env file
 Environment=NODE_ENV=production
-Environment=PORT=3001
-Environment=BIND_HOST=127.0.0.1
-# EnvironmentFile=/home/ubuntu/AuD-Tester-Website/.env
 
-ExecStart=/home/ubuntu/.nvm/versions/node/v24.14.0/bin/node server.js
+ExecStart=/home/ubuntu/.nvm/versions/node/v24.14.0/bin/node worker.js
 
 Restart=on-failure
 RestartSec=5
-# Permissions for logs etc.
 UMask=0027
 
-# Logs
 StandardOutput=journal
 StandardError=journal
 

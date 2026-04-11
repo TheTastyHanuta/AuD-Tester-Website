@@ -2,10 +2,10 @@ const path = require('path');
 const fs = require('fs-extra');
 const logger = require('../../logger');
 
-async function validateUSASCIIEncoding(workingDir, fileNames) {
+async function validateUSASCIIEncoding(workingDir, fileNames, log = logger) {
   const nonASCIIFiles = [];
 
-  logger.debug('Starting US-ASCII encoding validation', {
+  log.debug('Starting US-ASCII encoding validation', {
     fileNames,
   });
 
@@ -96,7 +96,7 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
       details: details,
     };
   } catch (error) {
-    logger.error('Error validating encoding:', {
+    log.error('Error validating encoding:', {
       error: error.message,
       fileNames,
     });
@@ -107,12 +107,12 @@ async function validateUSASCIIEncoding(workingDir, fileNames) {
   }
 }
 
-function validateRequiredFiles(uploadedFileNames, requiredFiles) {
+function validateRequiredFiles(uploadedFileNames, requiredFiles, log = logger) {
   if (!requiredFiles || requiredFiles.length === 0) {
     return { valid: true };
   }
 
-  logger.debug('Starting required files validation', {
+  log.debug('Starting required files validation', {
     uploadedCount: uploadedFileNames.length,
     requiredCount: requiredFiles.length,
   });
@@ -179,7 +179,7 @@ function validateRequiredFiles(uploadedFileNames, requiredFiles) {
       details: details,
     };
   } catch (error) {
-    logger.error('Error validating files:', {
+    log.error('Error validating files:', {
       error: error.message,
       stack: error.stack,
     });

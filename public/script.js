@@ -170,6 +170,18 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       const result = await response.json();
+      if (!response.ok) {
+        displayResults(result);
+        return;
+      }
+
+      if (response.status === 202 && result.jobId) {
+        renderQueuedJobStatus(result.status, result.message);
+        const completedResult = await pollSubmissionStatus(result.jobId);
+        displayResults(completedResult);
+        return;
+      }
+
       displayResults(result);
     } catch (error) {
       console.error('Error submitting code:', error);
@@ -201,6 +213,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function hideResults() {
     resultsSection.style.display = 'none';
+  }
+
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function getQueuedJobMessage(status, fallbackMessage) {
+    if (status === 'pending') {
+      return 'Deine Abgabe wartet auf die Überprüfung.';
+    }
+
+    if (status === 'active') {
+      return 'Deine Abgabe wird gerade überprüft.';
+    }
+
+    return fallbackMessage || 'Deine Abgabe wurde angenommen.';
+  }
+
+  function renderQueuedJobStatus(status, message) {
+    resultContent.innerHTML = `
+            <div class="result-card result-warning">
+                <div class="result-status">⏳</div>
+                <div class="result-message">
+                    <strong>Test Ergebnisse:</strong> ${escapeHtml(getQueuedJobMessage(status, message))}
+                </div>
+            </div>
+        `;
+    resultsSection.style.display = 'block';
+  }
+
+  async function pollSubmissionStatus(jobId) {
+    while (true) {
+      await delay(3000);
+
+      const response = await fetch(`/api/status/${encodeURIComponent(jobId)}`);
+      const jobStatus = await response.json();
+
+      if (!response.ok) {
+        throw new Error(jobStatus.message || 'Job status request failed');
+      }
+
+      if (jobStatus.status === 'completed') {
+        return jobStatus.result;
+      }
+
+      if (jobStatus.status === 'failed') {
+        return jobStatus.result;
+      }
+
+      renderQueuedJobStatus(jobStatus.status, jobStatus.message);
+    }
   }
 
   function displayResults(result) {
