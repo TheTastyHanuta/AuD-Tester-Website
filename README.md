@@ -116,6 +116,9 @@ npm run worker
 
 The upload endpoint returns `202 Accepted` with a `jobId` and `statusUrl`. Poll
 `GET /api/status/:jobId` until the job status is `completed` or `failed`.
+Completed and failed job results are kept for 72 hours by default. Override this
+with `JOB_RETENTION_HOURS`; the worker checks for expired jobs once per hour by
+default, configurable with `JOB_CLEANUP_INTERVAL_MS`.
 
 #### Starting in Production Mode
 

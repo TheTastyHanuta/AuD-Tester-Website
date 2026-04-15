@@ -163,6 +163,28 @@ function failSubmissionJob(id, error) {
     });
 }
 
+function cleanupExpiredSubmissionJobs(retentionHours = 72) {
+  const retentionMs = retentionHours * 60 * 60 * 1000;
+  const cutoff = new Date(Date.now() - retentionMs).toISOString();
+  const result = getDb()
+    .prepare(
+      `DELETE FROM submission_jobs
+       WHERE status IN ('completed', 'failed')
+         AND COALESCE(completed_at, updated_at) < @cutoff`
+    )
+    .run({ cutoff });
+
+  if (result.changes > 0) {
+    logger.info('Cleaned up expired submission jobs', {
+      count: result.changes,
+      retentionHours,
+      cutoff,
+    });
+  }
+
+  return result.changes;
+}
+
 function requeueActiveSubmissionJobs() {
   const now = new Date().toISOString();
   const result = getDb()
@@ -192,6 +214,7 @@ function closeQueue() {
 module.exports = {
   DB_PATH,
   closeQueue,
+  cleanupExpiredSubmissionJobs,
   completeSubmissionJob,
   createSubmissionJob,
   failSubmissionJob,

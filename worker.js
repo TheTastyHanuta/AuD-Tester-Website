@@ -8,6 +8,7 @@ const {
 const {
   claimNextSubmissionJob,
   closeQueue,
+  cleanupExpiredSubmissionJobs,
   completeSubmissionJob,
   failSubmissionJob,
   requeueActiveSubmissionJobs,
@@ -16,8 +17,13 @@ const {
 const POLL_INTERVAL_MS = Number(
   process.env.JOB_WORKER_POLL_INTERVAL_MS || 1000
 );
+const JOB_RETENTION_HOURS = Number(process.env.JOB_RETENTION_HOURS || 72);
+const CLEANUP_INTERVAL_MS = Number(
+  process.env.JOB_CLEANUP_INTERVAL_MS || 60 * 60 * 1000
+);
 
 let stopping = false;
+let lastCleanupAt = 0;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -55,15 +61,31 @@ async function processJob(job) {
   }
 }
 
+function cleanupOldJobsIfDue(force = false) {
+  const now = Date.now();
+
+  if (!force && now - lastCleanupAt < CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastCleanupAt = now;
+  cleanupExpiredSubmissionJobs(JOB_RETENTION_HOURS);
+}
+
 async function workLoop() {
   await checkJavaVersion();
   requeueActiveSubmissionJobs();
+  cleanupOldJobsIfDue(true);
 
   logger.info('Submission worker running', {
     pollIntervalMs: POLL_INTERVAL_MS,
+    jobRetentionHours: JOB_RETENTION_HOURS,
+    cleanupIntervalMs: CLEANUP_INTERVAL_MS,
   });
 
   while (!stopping) {
+    cleanupOldJobsIfDue();
+
     const job = claimNextSubmissionJob();
 
     if (!job) {
