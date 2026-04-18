@@ -177,12 +177,18 @@ npm run format
 The application uses the following environment variables:
 
 - `PORT`: The port on which the server will run (default: 3000)
+- `BIND_HOST`: Address the server binds to (default: `127.0.0.1`)
 - `SHOW_SECRET_TESTS`: Boolean flag to show/hide secret tests in the UI
 - `FORCE_SHOW_SECRET_TESTS`: Boolean flag to force showing secret tests regardless of deadline or success
 - `SESSION_SECRET`: Secret key for session encryption
+- `LOG_VIEWER_PASSWORD`: Password for the admin log viewer
 - `NODE_ENV`: The environment in which the application is running (default: development)
 - `LOG_LEVEL`: The logging level for the application (default: info)
-- `SESSION_DB_PATH`: File path for session storage (default: `data/sessions.sqlite`)
+- `SESSION_DB_PATH`: File path for admin session storage (default: `data/admin-sessions.sqlite`)
+- `JOB_QUEUE_DB_PATH`: File path for queued submission state (default: `data/submission-jobs.sqlite`)
+- `JOB_WORKER_POLL_INTERVAL_MS`: How often the worker checks for pending jobs (default: `1000`)
+- `JOB_RETENTION_HOURS`: How long completed and failed job results remain accessible (default: `72`)
+- `JOB_CLEANUP_INTERVAL_MS`: How often the worker removes expired jobs (default: `3600000`)
 - `JAVA_COMPILER_DOCKER_IMAGE`: Docker image used to compile exercises without tests (default: `eclipse-temurin:17-jdk`)
 - `JAVA_COMPILE_TIMEOUT_MS`: Timeout for compilation-only containers (default: `60000`)
 - `DOCKER_TEST_TIMEOUT_MS`: Timeout for exercise test containers (default: `120000`)

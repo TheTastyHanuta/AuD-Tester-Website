@@ -36,6 +36,18 @@ const config = {
   SESSION_DB_PATH:
     process.env.SESSION_DB_PATH ||
     path.join(__dirname, '../../data/admin-sessions.sqlite'),
+  JOB_QUEUE_DB_PATH:
+    process.env.JOB_QUEUE_DB_PATH ||
+    path.join(__dirname, '../../data/submission-jobs.sqlite'),
+  JOB_WORKER_POLL_INTERVAL_MS: getPositiveIntegerEnv(
+    'JOB_WORKER_POLL_INTERVAL_MS',
+    1000
+  ),
+  JOB_RETENTION_HOURS: getPositiveIntegerEnv('JOB_RETENTION_HOURS', 72),
+  JOB_CLEANUP_INTERVAL_MS: getPositiveIntegerEnv(
+    'JOB_CLEANUP_INTERVAL_MS',
+    60 * 60 * 1000
+  ),
   SHOW_SECRET_TESTS: process.env.SHOW_SECRET_TESTS === 'true',
   FORCE_SHOW_SECRET_TESTS: process.env.FORCE_SHOW_SECRET_TESTS === 'true',
   JAVA_COMPILER_DOCKER_IMAGE:

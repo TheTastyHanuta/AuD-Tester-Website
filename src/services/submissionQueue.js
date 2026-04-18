@@ -2,10 +2,9 @@ const path = require('path');
 const fs = require('fs-extra');
 const Database = require('better-sqlite3');
 const logger = require('../../logger');
+const config = require('../config/config');
 
-const DB_PATH =
-  process.env.JOB_QUEUE_DB_PATH ||
-  path.join(__dirname, '../../data/submission-jobs.sqlite');
+const DB_PATH = config.JOB_QUEUE_DB_PATH;
 
 let db;
 

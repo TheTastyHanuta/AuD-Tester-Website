@@ -228,7 +228,8 @@ h2 {
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
   gap: 16px;
-  min-height: calc(100vh - 190px);
+  height: calc(100dvh - 250px);
+  min-height: 420px;
 }
 
 .logs-sidebar,
@@ -243,6 +244,7 @@ h2 {
 .logs-sidebar {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   min-height: 0;
   padding: 16px;
 }
@@ -366,6 +368,7 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
   display: flex;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   flex-direction: column;
 }
 
@@ -410,8 +413,7 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 
 .log-output {
   flex: 1;
-  min-height: 440px;
-  max-height: calc(100vh - 268px);
+  min-height: 0;
   overflow: auto;
   padding: 14px 16px 18px;
   background: #0d0c10;
@@ -628,6 +630,7 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
 
   .logs-grid {
     grid-template-columns: 1fr;
+    height: auto;
     min-height: 0;
   }
 
@@ -636,6 +639,7 @@ input[type='datetime-local']::-webkit-calendar-picker-indicator {
   }
 
   .log-output {
+    min-height: 360px;
     max-height: none;
   }
 

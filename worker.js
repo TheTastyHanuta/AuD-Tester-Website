@@ -1,4 +1,5 @@
 const logger = require('./logger');
+const config = require('./src/config/config');
 const { createScopedLogger } = require('./src/utils/loggerHelper');
 const { checkJavaVersion } = require('./src/services/compilationService');
 const {
@@ -13,14 +14,6 @@ const {
   failSubmissionJob,
   requeueActiveSubmissionJobs,
 } = require('./src/services/submissionQueue');
-
-const POLL_INTERVAL_MS = Number(
-  process.env.JOB_WORKER_POLL_INTERVAL_MS || 1000
-);
-const JOB_RETENTION_HOURS = Number(process.env.JOB_RETENTION_HOURS || 72);
-const CLEANUP_INTERVAL_MS = Number(
-  process.env.JOB_CLEANUP_INTERVAL_MS || 60 * 60 * 1000
-);
 
 let stopping = false;
 let lastCleanupAt = 0;
@@ -64,12 +57,12 @@ async function processJob(job) {
 function cleanupOldJobsIfDue(force = false) {
   const now = Date.now();
 
-  if (!force && now - lastCleanupAt < CLEANUP_INTERVAL_MS) {
+  if (!force && now - lastCleanupAt < config.JOB_CLEANUP_INTERVAL_MS) {
     return;
   }
 
   lastCleanupAt = now;
-  cleanupExpiredSubmissionJobs(JOB_RETENTION_HOURS);
+  cleanupExpiredSubmissionJobs(config.JOB_RETENTION_HOURS);
 }
 
 async function workLoop() {
@@ -78,9 +71,9 @@ async function workLoop() {
   cleanupOldJobsIfDue(true);
 
   logger.info('Submission worker running', {
-    pollIntervalMs: POLL_INTERVAL_MS,
-    jobRetentionHours: JOB_RETENTION_HOURS,
-    cleanupIntervalMs: CLEANUP_INTERVAL_MS,
+    pollIntervalMs: config.JOB_WORKER_POLL_INTERVAL_MS,
+    jobRetentionHours: config.JOB_RETENTION_HOURS,
+    cleanupIntervalMs: config.JOB_CLEANUP_INTERVAL_MS,
   });
 
   while (!stopping) {
@@ -89,7 +82,7 @@ async function workLoop() {
     const job = claimNextSubmissionJob();
 
     if (!job) {
-      await sleep(POLL_INTERVAL_MS);
+      await sleep(config.JOB_WORKER_POLL_INTERVAL_MS);
       continue;
     }
 
