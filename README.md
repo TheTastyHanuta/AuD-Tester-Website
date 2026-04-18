@@ -260,7 +260,3 @@ When reporting issues, please include:
 - Steps to reproduce the issue
 - Expected vs actual behavior
 - Any error messages or console output
-
-## License
-
-This project is open source and available under MIT License.
