@@ -37,9 +37,9 @@ Usage:
 ### Requirements
 
 - Node.js (version 24 or higher)
-- Java Development Kit (JDK 8 or higher)
+- Docker (for compiling and testing submissions in containers)
+- A local Java compiler Docker image, defaulting to `eclipse-temurin:17-jdk`
 - npm or yarn package manager
-- Docker (for running JUnit tests in a container)
 
 ### Installation
 
@@ -69,10 +69,10 @@ Usage:
 
    This will create your local exercises.json, which is ignored by git. You can safely modify it without affecting the repository or other users.
 
-5. Ensure Java is installed and accessible via command line:
+5. Ensure Docker is installed and accessible via command line:
 
    ```bash
-   javac -version
+   docker --version
    ```
 
 6. Install Perl module JSON::XS
@@ -83,7 +83,32 @@ Usage:
 
 ### Create Docker Images for exercises
 
-This website uses Docker Images to run tests in submissions. For it to work on your machine you will need those images. You can find all the files to create them in this repository: <https://github.com/TheTastyHanuta/AuD-Docker-Files>
+This website uses Docker images to compile and test submissions. For it to work on your machine you will need a Java compiler image for exercises without tests and the test images for exercises with tests.
+
+By default, compilation uses `eclipse-temurin:17-jdk`. You can override this with `JAVA_COMPILER_DOCKER_IMAGE`.
+
+To install the default compiler image:
+
+```bash
+docker pull eclipse-temurin:17-jdk
+docker run --rm eclipse-temurin:17-jdk javac -version
+```
+
+If you prefer a local project-specific tag, create a minimal `Dockerfile.javac`:
+
+```dockerfile
+FROM eclipse-temurin:17-jdk
+WORKDIR /user
+```
+
+Then build it and point the app at it:
+
+```bash
+docker build -t aud-javac -f Dockerfile.javac .
+JAVA_COMPILER_DOCKER_IMAGE=aud-javac
+```
+
+You can find the files to create the exercise test images in this repository: <https://github.com/TheTastyHanuta/AuD-Docker-Files>
 
 Follow the instructions in the README of that repository to create the images.
 
@@ -157,6 +182,14 @@ The application uses the following environment variables:
 - `SESSION_SECRET`: Secret key for session encryption
 - `NODE_ENV`: The environment in which the application is running (default: development)
 - `LOG_LEVEL`: The logging level for the application (default: info)
+- `SESSION_DB_PATH`: File path for session storage (default: `data/sessions.sqlite`)
+- `JAVA_COMPILER_DOCKER_IMAGE`: Docker image used to compile exercises without tests (default: `eclipse-temurin:17-jdk`)
+- `JAVA_COMPILE_TIMEOUT_MS`: Timeout for compilation-only containers (default: `60000`)
+- `DOCKER_TEST_TIMEOUT_MS`: Timeout for exercise test containers (default: `120000`)
+- `DOCKER_MEMORY_LIMIT`: Memory limit for submission containers (default: `512m`)
+- `DOCKER_CPU_LIMIT`: CPU limit for submission containers (default: `0.5`)
+- `DOCKER_PIDS_LIMIT`: Process limit for submission containers (default: `100`)
+- `DOCKER_TEST_IMAGE_MAPPING`: Exercise-to-Docker-image mapping in `src/config/config.js`
 
 Create a `.env` file in the root directory and copy the contents of `.env.example` into it. Then, customize the values as needed.
 
@@ -189,8 +222,8 @@ Example exercise configuration:
 1. **File Upload**: Students upload Java files through the web interface
 2. **Temporary Storage**: Files are stored in a temporary directory for processing
 3. **Classpath Management**: JAR dependencies are automatically included in the classpath
-4. **Compilation**: The system attempts to compile all uploaded files using javac
-5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results via a docker container
+4. **Compilation**: The system compiles uploaded files inside a Docker container
+5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results via a Docker container
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
 

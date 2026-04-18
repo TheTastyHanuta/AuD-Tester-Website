@@ -1,8 +1,12 @@
 const express = require('express');
 const session = require('express-session');
 const morgan = require('morgan');
+const fs = require('fs-extra');
+const path = require('path');
+const Database = require('better-sqlite3');
 const config = require('./config/config');
 const logger = require('../logger');
+const SqliteSessionStore = require('./services/sqliteSessionStore');
 const {
   configureHelmet,
   configureCors,
@@ -13,10 +17,19 @@ const app = express();
 
 app.set('trust proxy', 1);
 
+fs.ensureDirSync(path.dirname(config.SESSION_DB_PATH));
+const sessionDb = new Database(config.SESSION_DB_PATH);
+sessionDb.pragma('journal_mode = WAL');
+sessionDb.pragma('busy_timeout = 5000');
+
 // Session configuration
 app.use(
   session({
     name: 'aud.sid',
+    store: new SqliteSessionStore({
+      client: sessionDb,
+      cleanupIntervalMs: 15 * 60 * 1000,
+    }),
     secret: config.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,

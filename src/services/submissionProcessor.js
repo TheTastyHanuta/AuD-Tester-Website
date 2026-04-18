@@ -111,7 +111,6 @@ async function processSubmissionJob(job) {
     );
 
     log.info('Docker test execution completed', {
-      dockerImage: dockerTestResult.dockerImage,
       success: dockerTestResult.success,
       status: dockerTestResult.status,
       points: dockerTestResult.points,

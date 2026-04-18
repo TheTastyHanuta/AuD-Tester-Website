@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuD Admin</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <header class="admin-header">
+        <div>
+          <p class="eyebrow">AuD Tester</p>
+          <h1>Admin Control</h1>
+        </div>
+        <div class="admin-actions">
+          <nav class="tab-list" aria-label="Admin sections">
+            <button class="tab-button is-active" type="button" data-tab="logs">
+              Logs
+            </button>
+            <button class="tab-button" type="button" data-tab="exercises">
+              Exercises
+            </button>
+          </nav>
+          <button id="logoutBtn" class="button button-danger" type="button">
+            Sign out
+          </button>
+        </div>
+      </header>
+
+      <main class="admin-main">
+        <section
+          id="logsPanel"
+          class="admin-panel is-active"
+          data-panel="logs"
+          aria-labelledby="logsHeading"
+        >
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">Runtime</p>
+              <h2 id="logsHeading">Logs</h2>
+            </div>
+            <div id="streamStatus" class="stream-status" data-state="idle">
+              Idle
+            </div>
+          </div>
+
+          <div class="logs-grid">
+            <aside class="logs-sidebar" aria-label="Log archive">
+              <div class="field-row">
+                <label for="logType">Type</label>
+                <select id="logType">
+                  <option value="app">App</option>
+                  <option value="combined">Combined</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+
+              <div class="toolbar compact">
+                <button
+                  id="refreshLogsBtn"
+                  class="button button-secondary"
+                  type="button"
+                >
+                  Refresh files
+                </button>
+                <button
+                  id="backToLiveBtn"
+                  class="button button-ghost"
+                  type="button"
+                >
+                  Back to live
+                </button>
+              </div>
+
+              <div class="archive-heading">
+                <span>Archive</span>
+                <span id="fileCount" class="pill">0</span>
+              </div>
+              <ul id="files" class="file-list"></ul>
+            </aside>
+
+            <section class="log-console" aria-label="Log output">
+              <div class="console-toolbar">
+                <div>
+                  <p class="console-label">Viewing</p>
+                  <div id="currentFile" class="current-file">Live tail</div>
+                </div>
+                <div class="console-controls">
+                  <label class="checkbox-control">
+                    <input type="checkbox" id="autoscroll" checked />
+                    Autoscroll
+                  </label>
+                  <label class="search-field" for="logSearch">
+                    <span>Search</span>
+                    <input
+                      id="logSearch"
+                      type="search"
+                      placeholder="error, job id, route"
+                    />
+                  </label>
+                  <button
+                    id="downloadLogBtn"
+                    class="button button-secondary"
+                    type="button"
+                    disabled
+                  >
+                    Download
+                  </button>
+                </div>
+              </div>
+              <div id="logOutput" class="log-output" aria-live="polite"></div>
+            </section>
+          </div>
+        </section>
+
+        <section
+          id="exercisesPanel"
+          class="admin-panel"
+          data-panel="exercises"
+          aria-labelledby="exercisesHeading"
+        >
+          <div class="panel-heading exercise-heading">
+            <div>
+              <p class="section-kicker">Schedule</p>
+              <h2 id="exercisesHeading">Exercises</h2>
+            </div>
+            <button
+              id="reloadExercisesBtn"
+              class="button button-secondary"
+              type="button"
+            >
+              Reload
+            </button>
+          </div>
+
+          <div id="exerciseMessage" class="message" hidden></div>
+          <div id="exerciseLoading" class="loading">Loading exercises...</div>
+
+          <div id="exerciseEditor" class="exercise-editor" hidden>
+            <div class="exercise-list-header">
+              <span>Exercise</span>
+              <span>Status</span>
+              <span>Deadline</span>
+            </div>
+            <div id="exerciseRows" class="exercise-rows"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="dirtyBar" class="dirty-bar" hidden>
+      <span id="dirtyCount">0 unsaved changes</span>
+      <div>
+        <button
+          id="discardChangesBtn"
+          class="button button-ghost"
+          type="button"
+        >
+          Discard
+        </button>
+        <button id="saveChangesBtn" class="button button-primary" type="button">
+          Save changes
+        </button>
+      </div>
+    </div>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>

@@ -1,7 +1,16 @@
 const path = require('path');
 const fs = require('fs-extra');
 
+const LOG_TYPES = new Set(['app', 'combined', 'error']);
+
+function assertValidLogType(type) {
+  if (!LOG_TYPES.has(type)) {
+    throw new Error('Invalid log type');
+  }
+}
+
 function getLogDir(type) {
+  assertValidLogType(type);
   const base = path.join(__dirname, '../../logs');
   if (type === 'error') return path.join(base, 'error');
   if (type === 'app') return path.join(base, 'app');
@@ -33,6 +42,7 @@ async function getLatestLogFile(type) {
 }
 
 module.exports = {
+  assertValidLogType,
   getLogDir,
   listLogFiles,
   getLatestLogFile,

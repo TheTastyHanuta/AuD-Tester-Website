@@ -1,5 +1,6 @@
 const dotenv = require('dotenv');
 const crypto = require('crypto');
+const path = require('path');
 
 dotenv.config();
 
@@ -21,14 +22,45 @@ function getSessionSecret() {
   return provided;
 }
 
+function getPositiveIntegerEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
 const config = {
   PORT: process.env.PORT || 3000,
   HOST: process.env.BIND_HOST || '127.0.0.1',
   IS_PRODUCTION: process.env.NODE_ENV === 'production',
   SESSION_SECRET: getSessionSecret(),
   LOG_VIEWER_PASSWORD: process.env.LOG_VIEWER_PASSWORD,
+  SESSION_DB_PATH:
+    process.env.SESSION_DB_PATH ||
+    path.join(__dirname, '../../data/admin-sessions.sqlite'),
   SHOW_SECRET_TESTS: process.env.SHOW_SECRET_TESTS === 'true',
   FORCE_SHOW_SECRET_TESTS: process.env.FORCE_SHOW_SECRET_TESTS === 'true',
+  JAVA_COMPILER_DOCKER_IMAGE:
+    process.env.JAVA_COMPILER_DOCKER_IMAGE || 'eclipse-temurin:17-jdk',
+  JAVA_COMPILE_TIMEOUT_MS: getPositiveIntegerEnv(
+    'JAVA_COMPILE_TIMEOUT_MS',
+    60000
+  ),
+  DOCKER_TEST_TIMEOUT_MS: getPositiveIntegerEnv(
+    'DOCKER_TEST_TIMEOUT_MS',
+    120000
+  ),
+  DOCKER_MEMORY_LIMIT: process.env.DOCKER_MEMORY_LIMIT || '512m',
+  DOCKER_CPU_LIMIT: process.env.DOCKER_CPU_LIMIT || '0.5',
+  DOCKER_PIDS_LIMIT: process.env.DOCKER_PIDS_LIMIT || '100',
+  DOCKER_TEST_IMAGE_MAPPING: {
+    arrays: 'aufgabe2-arrays',
+    caesarchiffre: 'aufgabe3-caesarchiffre',
+    signalplotter: 'aufgabe3-signalplotter',
+    color: 'aufgabe4-color',
+    snakegame: 'aufgabe5-snake',
+    sortedset: 'aufgabe7-sortedset',
+    contactdb: 'aufgabe8-contactdatabase',
+    binarytree: 'aufgabe9-binarysearchtree',
+  },
 
   // Allowed origins for CORS and client logging
   getAllowedOrigins: function () {

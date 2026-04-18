@@ -36,6 +36,15 @@ function formatFailedJob(job) {
   };
 }
 
+function sanitizeSubmissionResult(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return result;
+  }
+
+  const { dockerImage, ...publicResult } = result;
+  return publicResult;
+}
+
 async function handleSubmission(req, res) {
   const uploadMiddleware = upload.array('javaFiles', 20);
 
@@ -158,7 +167,7 @@ function getSubmissionStatus(req, res) {
     };
 
     if (job.status === 'completed') {
-      response.result = job.result;
+      response.result = sanitizeSubmissionResult(job.result);
     } else if (job.status === 'failed') {
       response.error = job.error;
       response.result = formatFailedJob(job);

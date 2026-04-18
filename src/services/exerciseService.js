@@ -3,6 +3,7 @@ const path = require('path');
 const logger = require('../../logger');
 
 const EXERCISES_FILE = path.join(__dirname, '../../exercises.json');
+let exerciseWriteQueue = Promise.resolve();
 
 async function getAllExercises() {
   try {
@@ -13,44 +14,97 @@ async function getAllExercises() {
   }
 }
 
-async function updateExerciseDeadline(exerciseId, newDeadline) {
-  try {
+function normalizeDeadline(deadline) {
+  if (typeof deadline !== 'string' || deadline.trim() === '') {
+    throw new Error('Invalid deadline format');
+  }
+
+  const deadlineDate = new Date(deadline);
+  if (isNaN(deadlineDate.getTime())) {
+    throw new Error('Invalid deadline format');
+  }
+
+  return deadlineDate.toISOString();
+}
+
+async function writeExercisesAtomically(exercises) {
+  const tempFile = `${EXERCISES_FILE}.${process.pid}.${Date.now()}.tmp`;
+  await fs.writeJson(tempFile, exercises, { spaces: 2 });
+  await fs.rename(tempFile, EXERCISES_FILE);
+}
+
+function withExerciseWriteLock(task) {
+  const run = exerciseWriteQueue.then(task, task);
+  exerciseWriteQueue = run.catch(() => {});
+  return run;
+}
+
+async function updateExerciseDeadlines(updates) {
+  return withExerciseWriteLock(async () => {
+    if (!Array.isArray(updates) || updates.length === 0) {
+      throw new Error('At least one deadline update is required');
+    }
+
     const exercises = await getAllExercises();
-    const exerciseIndex = exercises.findIndex(ex => ex.id === exerciseId);
+    const normalizedUpdates = updates.map(update => {
+      if (!update || typeof update.id !== 'string') {
+        throw new Error('Exercise id is required');
+      }
 
-    if (exerciseIndex === -1) {
-      throw new Error('Exercise not found');
-    }
-
-    // Validate deadline format (ISO 8601)
-    const deadlineDate = new Date(newDeadline);
-    if (isNaN(deadlineDate.getTime())) {
-      throw new Error('Invalid deadline format');
-    }
-
-    exercises[exerciseIndex].deadline = newDeadline;
-
-    // Write back to file with pretty formatting
-    await fs.writeJson(EXERCISES_FILE, exercises, { spaces: 2 });
-
-    logger.info('Exercise deadline updated', {
-      exerciseId,
-      newDeadline,
-      exercise: exercises[exerciseIndex].name,
+      return {
+        id: update.id,
+        deadline: normalizeDeadline(update.deadline),
+      };
     });
 
-    return exercises[exerciseIndex];
-  } catch (error) {
-    logger.error('Error updating exercise deadline', {
+    const seenIds = new Set();
+    for (const update of normalizedUpdates) {
+      if (seenIds.has(update.id)) {
+        throw new Error(`Duplicate exercise update: ${update.id}`);
+      }
+      seenIds.add(update.id);
+
+      if (!exercises.some(ex => ex.id === update.id)) {
+        throw new Error(`Exercise not found: ${update.id}`);
+      }
+    }
+
+    const updateById = new Map(
+      normalizedUpdates.map(update => [update.id, update.deadline])
+    );
+
+    const updatedExercises = exercises.map(exercise =>
+      updateById.has(exercise.id)
+        ? { ...exercise, deadline: updateById.get(exercise.id) }
+        : exercise
+    );
+
+    await writeExercisesAtomically(updatedExercises);
+
+    logger.info('Exercise deadlines updated', {
+      count: normalizedUpdates.length,
+      exerciseIds: normalizedUpdates.map(update => update.id),
+    });
+
+    return updatedExercises;
+  }).catch(error => {
+    logger.error('Error updating exercise deadlines', {
       error: error.message,
-      exerciseId,
-      newDeadline,
+      updates,
     });
     throw error;
-  }
+  });
+}
+
+async function updateExerciseDeadline(exerciseId, newDeadline) {
+  const exercises = await updateExerciseDeadlines([
+    { id: exerciseId, deadline: newDeadline },
+  ]);
+  return exercises.find(ex => ex.id === exerciseId);
 }
 
 module.exports = {
   getAllExercises,
   updateExerciseDeadline,
+  updateExerciseDeadlines,
 };

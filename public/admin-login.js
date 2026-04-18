@@ -1,3 +1,3 @@
 const params = new URLSearchParams(location.search);
-const ret = params.get('return') || '/admin/logs';
+const ret = params.get('return') || '/admin';
 document.getElementById('returnInput').value = ret;

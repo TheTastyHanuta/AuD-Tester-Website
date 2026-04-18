@@ -1,18 +1,70 @@
-const { exec } = require('child_process');
+const { randomUUID } = require('crypto');
 const path = require('path');
 const fs = require('fs-extra');
+const config = require('../config/config');
 const { createScopedLogger } = require('../utils/loggerHelper');
+const { spawnPromise } = require('./processService');
 
-function execPromise(command, options) {
-  return new Promise(resolve => {
-    exec(command, options, (error, stdout, stderr) => {
-      resolve({
-        error: error,
-        stdout: stdout || '',
-        stderr: stderr || '',
-      });
+function getDockerResourceArgs() {
+  return [
+    `--memory=${config.DOCKER_MEMORY_LIMIT}`,
+    `--cpus=${config.DOCKER_CPU_LIMIT}`,
+    `--pids-limit=${config.DOCKER_PIDS_LIMIT}`,
+    '--network=none',
+  ];
+}
+
+function getDockerResourceLogContext() {
+  return {
+    memory: config.DOCKER_MEMORY_LIMIT,
+    cpus: config.DOCKER_CPU_LIMIT,
+    pidsLimit: config.DOCKER_PIDS_LIMIT,
+    network: 'none',
+  };
+}
+
+function createDockerContainerName(prefix = 'aud-tester') {
+  return `${prefix}-${randomUUID()}`;
+}
+
+async function removeDockerContainer(containerName, log) {
+  const cleanupResult = await spawnPromise(
+    'docker',
+    ['rm', '-f', containerName],
+    { timeout: 10000 }
+  );
+
+  if (cleanupResult.error) {
+    log?.warn('Could not remove timed out Docker container', {
+      containerName,
+      error: cleanupResult.stderr || cleanupResult.error.message,
     });
+  } else {
+    log?.info('Removed timed out Docker container', { containerName });
+  }
+}
+
+async function runDockerCommand(args, options = {}) {
+  const {
+    containerName,
+    log,
+    timeout = config.DOCKER_TEST_TIMEOUT_MS,
+    ...spawnOptions
+  } = options;
+  const result = await spawnPromise('docker', args, {
+    ...spawnOptions,
+    timeout,
   });
+
+  if (result.timedOut && containerName) {
+    log?.warn('Docker command timed out', {
+      containerName,
+      timeoutMs: timeout,
+    });
+    await removeDockerContainer(containerName, log);
+  }
+
+  return result;
 }
 
 async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
@@ -21,21 +73,11 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
   try {
     log.info('Starting Docker tests');
 
-    // Docker image mapping
-    const testDockerImageMapping = {
-      arrays: 'aufgabe2-arrays',
-      caesarchiffre: 'aufgabe3-caesarchiffre',
-      signalplotter: 'aufgabe3-signalplotter',
-      color: 'aufgabe4-color',
-      snakegame: 'aufgabe5-snake',
-      sortedset: 'aufgabe7-sortedset',
-      contactdb: 'aufgabe8-contactdatabase',
-      binarytree: 'aufgabe9-binarysearchtree',
-    };
-
-    const dockerImage = testDockerImageMapping[exercise];
+    const dockerImage = config.DOCKER_TEST_IMAGE_MAPPING[exercise];
     if (!dockerImage) {
-      log.warn('No Docker image configured for exercise');
+      log.warn('No Docker image configured for exercise', {
+        configuredExercises: Object.keys(config.DOCKER_TEST_IMAGE_MAPPING),
+      });
       return {
         success: false,
         status: '⚠️',
@@ -49,11 +91,20 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     const resultDir = path.join(workingDir, 'result');
     await fs.ensureDir(resultDir);
 
-    // Docker command
-    const dockerCommand = [
-      'docker',
+    const containerName = createDockerContainerName('aud-tester-tests');
+    log.info('Resolved Docker test sandbox', {
+      dockerImage,
+      containerName,
+      timeoutMs: config.DOCKER_TEST_TIMEOUT_MS,
+      resources: getDockerResourceLogContext(),
+    });
+
+    const dockerArgs = [
       'run',
       '--rm',
+      '--name',
+      containerName,
+      ...getDockerResourceArgs(),
       '-v',
       `${path.resolve(workingDir)}:/user`,
       '-v',
@@ -62,18 +113,21 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     ];
 
     log.debug('Executing Docker command', {
-      command: dockerCommand.join(' '),
+      command: 'docker',
+      args: dockerArgs,
       dockerImage,
       resultDir,
     });
 
     // Execute Docker command with timeout
-    const dockerResult = await execPromise(dockerCommand.join(' '), {
+    const dockerResult = await runDockerCommand(dockerArgs, {
       cwd: workingDir,
-      timeout: 120000, // 2 minute timeout for Docker tests
+      timeout: config.DOCKER_TEST_TIMEOUT_MS,
+      containerName,
+      log,
     });
 
-    // If the execPromise failed to return a result, handle it
+    // If the Docker process failed to return a result, handle it
     if (!dockerResult) {
       log.error('Docker execution failed to return a result', {
         dockerImage,
@@ -88,9 +142,10 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       };
     }
 
-    log.debug('Docker execution completed successfully', {
+    log.debug('Docker execution completed', {
       dockerImage,
       returnCode: dockerResult.error?.code || 0,
+      timedOut: dockerResult.timedOut,
       stdout: dockerResult.stdout,
       stderr: dockerResult.stderr,
     });
@@ -105,14 +160,12 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       });
 
       // If Docker crashes, return compile error
-      const comment =
-        'Compile error\naudoscore crash (probably due to file misspelling or wrong encoding)';
       return {
         success: false,
-        status: '❌',
-        message:
-          'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)',
-        details: comment,
+        status: '⚠️',
+        message: 'Überprüfung fehlgeschlagen',
+        details:
+          'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut und überprüfe Deinen Code. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
     }
 
@@ -197,7 +250,6 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
       message: message,
       details: cleanFeedbackText,
       points: points,
-      dockerImage: dockerImage,
     };
   } catch (error) {
     log.error('Error running Docker tests', {
@@ -216,5 +268,8 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
 
 module.exports = {
   runDockerTests,
-  execPromise,
+  createDockerContainerName,
+  getDockerResourceArgs,
+  getDockerResourceLogContext,
+  runDockerCommand,
 };
