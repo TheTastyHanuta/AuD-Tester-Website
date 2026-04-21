@@ -175,24 +175,34 @@ function classifyLogLine(line) {
 }
 
 function splitLogMetadata(message) {
-  const jsonStart = message.lastIndexOf(' {');
-
-  if (jsonStart === -1 || !message.endsWith('}')) {
+  if (!message.endsWith('}')) {
     return { message, meta: null, metaText: '' };
   }
 
-  const jsonText = message.slice(jsonStart + 1);
+  let searchFrom = message.length - 1;
 
-  try {
-    const meta = JSON.parse(jsonText);
-    return {
-      message: message.slice(0, jsonStart).trimEnd(),
-      meta,
-      metaText: JSON.stringify(meta, null, 2),
-    };
-  } catch (_) {
-    return { message, meta: null, metaText: '' };
+  while (searchFrom >= 0) {
+    const jsonStart = message.lastIndexOf(' {', searchFrom);
+
+    if (jsonStart === -1) {
+      return { message, meta: null, metaText: '' };
+    }
+
+    const jsonText = message.slice(jsonStart + 1);
+
+    try {
+      const meta = JSON.parse(jsonText);
+      return {
+        message: message.slice(0, jsonStart).trimEnd(),
+        meta,
+        metaText: JSON.stringify(meta, null, 2),
+      };
+    } catch (_) {
+      searchFrom = jsonStart - 1;
+    }
   }
+
+  return { message, meta: null, metaText: '' };
 }
 
 function normalizeLogLevel(level, fallbackLine) {

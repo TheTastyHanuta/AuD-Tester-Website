@@ -5,6 +5,8 @@ const config = require('../config/config');
 const { createScopedLogger } = require('../utils/loggerHelper');
 const { spawnPromise } = require('./processService');
 
+const SubmissionStatus = require('../utils/submissionStatus');
+
 function getDockerResourceArgs() {
   return [
     `--memory=${config.DOCKER_MEMORY_LIMIT}`,
@@ -79,9 +81,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         configuredExercises: Object.keys(config.DOCKER_TEST_IMAGE_MAPPING),
       });
       return {
-        success: false,
-        status: '⚠️',
-        message: 'Test configuration error',
+        status: SubmissionStatus.SYSTEM_ERROR,
         details:
           'Es wurde kein Test für diese Übung konfiguriert. Das sollte nicht passieren. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
@@ -92,7 +92,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     await fs.ensureDir(resultDir);
 
     const containerName = createDockerContainerName('aud-tester-tests');
-    log.info('Resolved Docker test sandbox', {
+    log.debug('Resolved Docker test sandbox', {
       dockerImage,
       containerName,
       timeoutMs: config.DOCKER_TEST_TIMEOUT_MS,
@@ -134,9 +134,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         resultDir,
       });
       return {
-        success: false,
-        status: '⚠️',
-        message: 'Überprüfung fehlgeschlagen',
+        status: SubmissionStatus.SYSTEM_ERROR,
         details:
           'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut und überprüfe Deinen Code. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
@@ -161,9 +159,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
 
       // If Docker crashes, return compile error
       return {
-        success: false,
-        status: '⚠️',
-        message: 'Überprüfung fehlgeschlagen',
+        status: SubmissionStatus.SYSTEM_ERROR,
         details:
           'Es ist ein Fehler bei der Ausführung aufgetreten. Bitte versuche es später erneut und überprüfe Deinen Code. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
@@ -178,10 +174,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
         resultsPath: resultsJsonPath,
       });
       return {
-        success: false,
-        status: '⚠️',
-        message:
-          'Es gab ein Problem bei der Überprüfung. Details konnten nicht gelesen werden.',
+        status: SubmissionStatus.SYSTEM_ERROR,
         details:
           'Tests wurden ausgeführt, aber keine Ergebnisse gefunden. Bitte überprüfe Deinen Code. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum.',
       };
@@ -215,39 +208,22 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     const cleanFeedbackText = feedbackText.replace(/,/g, '');
 
     // Determine success based on status
-    let isSuccess = instantStatus === '✔' || instantStatus.includes('✔');
+    let finalStatus;
 
-    if (instantStatus === '✔') {
-      instantStatus = '✅';
-      isSuccess = true;
+    if (instantStatus === '✔' || instantStatus.includes('✔')) {
+      finalStatus = SubmissionStatus.SUCCESS;
     } else if (instantStatus === '⚠️') {
-      isSuccess = false;
+      finalStatus = SubmissionStatus.SYSTEM_ERROR;
       log.warn('Docker test returned an internal error', {
         dockerImage,
         instantStatus,
       });
     } else {
-      instantStatus = '❌';
-      isSuccess = false;
-    }
-
-    // Build message based on status
-    let message;
-    if (instantStatus === '✅') {
-      message =
-        'Alles supi. Du kannst die Dateien so auf StudOn hochladen. Genaueres Feedback wird angezeigt, wenn die Deadline vorbei ist.';
-    } else if (instantStatus === '⚠️') {
-      message =
-        'Internal Error. Das ist gar nicht gut. Wenn das öfter passiert, melde Dich bitte im Forum.';
-    } else {
-      message =
-        'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)';
+      finalStatus = SubmissionStatus.TEST_FAILED;
     }
 
     return {
-      success: isSuccess,
-      status: instantStatus,
-      message: message,
+      status: finalStatus,
       details: cleanFeedbackText,
       points: points,
     };
@@ -258,9 +234,7 @@ async function runDockerTests(workingDir, exercise, exerciseConfig, sessionId) {
     });
 
     return {
-      success: false,
-      status: '⚠️',
-      message: 'Es gab ein Problem bei der Überprüfung',
+      status: SubmissionStatus.SYSTEM_ERROR,
       details: `Es ist ein Fehler aufgetreten. Wenn das Problem weiterhin besteht, melde Dich bitte im Forum: ${error.message}`,
     };
   }

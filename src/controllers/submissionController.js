@@ -9,6 +9,8 @@ const {
   getSubmissionJob,
 } = require('../services/submissionQueue');
 const { cleanupTempDir } = require('../services/submissionProcessor');
+const { formatSubmissionResponse } = require('../utils/responseFormatter');
+const SubmissionStatus = require('../utils/submissionStatus');
 
 async function removeUploadedFiles(files) {
   if (!files) {
@@ -26,14 +28,12 @@ async function removeUploadedFiles(files) {
 }
 
 function formatFailedJob(job) {
-  return {
-    success: false,
-    status: '⚠️',
-    message: 'Überprüfung fehlgeschlagen',
+  return formatSubmissionResponse({
+    status: SubmissionStatus.SYSTEM_ERROR,
     details:
       job.error ||
       'Die Überprüfung konnte nicht abgeschlossen werden. Bitte versuche es später erneut.',
-  };
+  });
 }
 
 function sanitizeSubmissionResult(result) {
@@ -42,7 +42,7 @@ function sanitizeSubmissionResult(result) {
   }
 
   const { dockerImage, ...publicResult } = result;
-  return publicResult;
+  return formatSubmissionResponse(publicResult);
 }
 
 async function handleSubmission(req, res) {
@@ -76,6 +76,9 @@ async function handleSubmission(req, res) {
 
       const { exercise } = req.body;
       if (!exercise) {
+        logger.warn('No exercise selected in submission', {
+          sessionId: req.session?.id || 'no-session',
+        });
         return res.status(400).json({
           success: false,
           status: '❌',
@@ -150,6 +153,10 @@ function getSubmissionStatus(req, res) {
     const job = getSubmissionJob(req.params.jobId);
 
     if (!job) {
+      logger.warn('Submission job status requested but not found', {
+        jobId: req.params.jobId,
+        ip: req.ip,
+      });
       return res.status(404).json({
         error: 'Job not found',
         status: 'failed',

@@ -73,6 +73,11 @@ function createSubmissionJob(id, payload) {
       now,
     });
 
+  logger.info('Created new submission job', {
+    jobId: id,
+    exercise: payload.exercise,
+    sessionId: payload.sessionId,
+  });
   return getSubmissionJob(id);
 }
 
@@ -117,7 +122,13 @@ const claimNextSubmissionJob = () => {
       return null;
     }
 
-    return getSubmissionJob(row.id);
+    const job = getSubmissionJob(row.id);
+    logger.info('Claimed submission job for processing', {
+      jobId: job.id,
+      attempts: job.attempts,
+      sessionId: job.payload.sessionId,
+    });
+    return job;
   });
 
   return transaction();
@@ -140,6 +151,11 @@ function completeSubmissionJob(id, result) {
       result: JSON.stringify(result),
       now,
     });
+
+  logger.info('Marked submission job as completed in queue', {
+    jobId: id,
+    status: result?.status,
+  });
 }
 
 function failSubmissionJob(id, error) {
@@ -160,6 +176,11 @@ function failSubmissionJob(id, error) {
       error: message,
       now,
     });
+
+  logger.error('Marked submission job as failed in queue', {
+    jobId: id,
+    error: message,
+  });
 }
 
 function cleanupExpiredSubmissionJobs(retentionHours = 72) {

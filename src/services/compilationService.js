@@ -10,6 +10,7 @@ const {
   runDockerCommand,
 } = require('./dockerService');
 const { spawnPromise } = require('./processService');
+const SubmissionStatus = require('../utils/submissionStatus');
 
 function normalizeJavacOutput(output) {
   if (typeof output !== 'string') {
@@ -74,7 +75,7 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         .filter(file => file.endsWith('.java'));
       const classpath = '.'; // Set classpath to current directory
       const containerName = createDockerContainerName('aud-tester-compile');
-      log.info('Resolved Docker compilation sandbox', {
+      log.debug('Resolved Docker compilation sandbox', {
         dockerImage: config.JAVA_COMPILER_DOCKER_IMAGE,
         containerName,
         timeoutMs: config.JAVA_COMPILE_TIMEOUT_MS,
@@ -120,14 +121,8 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         if (error) {
           const normalizedStderr = normalizeJavacOutput(stderr);
 
-          log.debug('Compilation failed', {
-            error: normalizedStderr || error.message,
-            stdout,
-            files: allJavaFiles,
-          });
-
           if (timedOut || error.code === 125) {
-            log.warn('Docker compilation sandbox failed', {
+            log.error('Docker compilation sandbox failed', {
               dockerImage: config.JAVA_COMPILER_DOCKER_IMAGE,
               containerName,
               timedOut,
@@ -135,16 +130,22 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
               stderr: stderr || null,
             });
             resolve({
-              success: false,
-              error:
+              status: SubmissionStatus.SYSTEM_ERROR,
+              details:
                 'Die Kompilierung konnte nicht abgeschlossen werden. Bitte versuche es später erneut.',
             });
             return;
           }
 
-          resolve({
-            success: false,
+          log.debug('Compilation failed', {
             error: normalizedStderr || error.message,
+            stdout,
+            files: allJavaFiles,
+          });
+
+          resolve({
+            status: SubmissionStatus.COMPILATION_ERROR,
+            details: normalizedStderr || error.message,
           });
         } else {
           const normalizedStdout = normalizeJavacOutput(stdout);
@@ -154,8 +155,8 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
             files: allJavaFiles,
           });
           resolve({
-            success: true,
-            output: normalizedStdout,
+            status: SubmissionStatus.SUCCESS,
+            details: normalizedStdout,
           });
         }
       });
@@ -165,8 +166,8 @@ function compileJavaFiles(workingDir, fileNames, exerciseConfig, sessionId) {
         stack: err.stack,
       });
       resolve({
-        success: false,
-        error: `Error setting up compilation: ${err.message}`,
+        status: SubmissionStatus.SYSTEM_ERROR,
+        details: `Error setting up compilation: ${err.message}`,
       });
     }
   });

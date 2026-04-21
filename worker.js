@@ -35,7 +35,6 @@ async function processJob(job) {
     const result = await processSubmissionJob(job);
     completeSubmissionJob(job.id, result);
     log.info('Submission worker completed job', {
-      success: result.success,
       status: result.status,
     });
   } catch (error) {

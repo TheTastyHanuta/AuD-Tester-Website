@@ -9,6 +9,7 @@ const {
   validateRequiredFiles,
 } = require('./validationService');
 const config = require('../config/config');
+const SubmissionStatus = require('../utils/submissionStatus');
 
 const EXERCISES_FILE = path.join(__dirname, '../../exercises.json');
 
@@ -69,10 +70,9 @@ async function processSubmissionJob(job) {
 
   const exerciseConfig = await getExerciseConfig(exercise);
   if (!exerciseConfig) {
+    log.warn('Invalid exercise selected in submission');
     return {
-      success: false,
-      status: '❌',
-      message: 'Ungültige Übung ausgewählt',
+      status: SubmissionStatus.INVALID_EXERCISE,
       details: 'Die ausgewählte Übung wurde nicht gefunden.',
     };
   }
@@ -83,14 +83,12 @@ async function processSubmissionJob(job) {
     log
   );
   if (!requiredFilesCheck.valid) {
-    log.info('File validation failed in queued submission', {
+    log.warn('File validation failed in queued submission', {
       uploadedFiles: fileNames,
       requiredFiles: exerciseConfig.required_files || [],
     });
     return {
-      success: false,
-      status: '❌',
-      message: 'Ungültige Dateiauswahl',
+      status: SubmissionStatus.INVALID_FILES,
       details: requiredFilesCheck.details,
       deadline: exerciseConfig.deadline,
       deadlinePassed: new Date() > new Date(exerciseConfig.deadline),
@@ -99,7 +97,7 @@ async function processSubmissionJob(job) {
 
   const encodingCheck = await validateUSASCIIEncoding(tempDir, fileNames, log);
   if (!encodingCheck.valid) {
-    log.info('Encoding issues detected, but continuing with tests/compilation');
+    log.warn('Encoding issues detected, but continuing with tests/compilation');
   }
 
   if (exerciseConfig.hasTests) {
@@ -111,21 +109,20 @@ async function processSubmissionJob(job) {
     );
 
     log.info('Docker test execution completed', {
-      success: dockerTestResult.success,
       status: dockerTestResult.status,
       points: dockerTestResult.points,
     });
 
+    const isSuccess = dockerTestResult.status === SubmissionStatus.SUCCESS;
+
     if (
       (new Date() > new Date(exerciseConfig.deadline) &&
-        dockerTestResult.success &&
+        isSuccess &&
         config.SHOW_SECRET_TESTS) ||
       config.FORCE_SHOW_SECRET_TESTS
     ) {
       return {
-        success: dockerTestResult.success,
         status: dockerTestResult.status,
-        message: dockerTestResult.message,
         details: dockerTestResult.details,
         points: dockerTestResult.points,
         deadline: exerciseConfig.deadline,
@@ -133,11 +130,9 @@ async function processSubmissionJob(job) {
       };
     }
 
-    if (!dockerTestResult.success && config.SHOW_SECRET_TESTS) {
+    if (!isSuccess && config.SHOW_SECRET_TESTS) {
       return {
-        success: dockerTestResult.success,
         status: dockerTestResult.status,
-        message: dockerTestResult.message,
         details: dockerTestResult.details,
         deadline: exerciseConfig.deadline,
         encodingWarning: !encodingCheck.valid ? encodingCheck.details : null,
@@ -145,9 +140,7 @@ async function processSubmissionJob(job) {
     }
 
     return {
-      success: dockerTestResult.success,
       status: dockerTestResult.status,
-      message: dockerTestResult.message,
       deadline: exerciseConfig.deadline,
       encodingWarning: !encodingCheck.valid ? encodingCheck.details : null,
     };
@@ -160,14 +153,13 @@ async function processSubmissionJob(job) {
     sessionId
   );
 
-  if (!compilationResult.success) {
-    log.info('Compilation failed without tests');
+  if (compilationResult.status !== SubmissionStatus.SUCCESS) {
+    log.info('Compilation failed without tests', {
+      status: compilationResult.status,
+    });
     return {
-      success: false,
-      status: '❌',
-      message:
-        'Compile Error. Bitte überprüfe Deinen Code. Bei einer Abgabe über StudOn wird dies 0 Punkte ergeben. (Ausnahme sind die ersten zwei Übungen)',
-      details: compilationResult.error,
+      status: compilationResult.status,
+      details: compilationResult.details,
       deadline: exerciseConfig.deadline,
       encodingWarning: !encodingCheck.valid ? encodingCheck.details : null,
     };
@@ -175,9 +167,7 @@ async function processSubmissionJob(job) {
 
   log.info('Compilation successful without tests');
   return {
-    success: true,
-    status: '✅',
-    message: 'Erfolgreich kompiliert',
+    status: SubmissionStatus.SUCCESS,
     details:
       'Dein Code wurde erfolgreich kompiliert. Du kannst ihn so abgeben!',
     deadline: exerciseConfig.deadline,

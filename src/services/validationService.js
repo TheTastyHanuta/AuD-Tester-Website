@@ -55,6 +55,14 @@ async function validateUSASCIIEncoding(workingDir, fileNames, log = logger) {
       return { valid: true };
     }
 
+    log.debug('Non-ASCII characters detected in files', {
+      filesWithIssues: nonASCIIFiles.map(f => ({
+        fileName: f.fileName,
+        problemCount: f.problems.length,
+        sampleProblems: f.problems.slice(0, 5),
+      })),
+    });
+
     // Build detailed error message
     let details =
       'Deine Java-Dateien enthalten nicht-ASCII-Zeichen. Bitte verwende nur US-ASCII-Codierung.\n\n';
