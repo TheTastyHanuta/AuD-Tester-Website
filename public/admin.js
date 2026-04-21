@@ -12,6 +12,7 @@ const state = {
 };
 
 const MAX_LIVE_LINES = 1500;
+const LOG_LEVELS = new Set(['error', 'warn', 'info', 'debug', 'log']);
 
 const els = {
   tabs: Array.from(document.querySelectorAll('.tab-button')),
@@ -173,33 +174,169 @@ function classifyLogLine(line) {
   return 'log';
 }
 
+function splitLogMetadata(message) {
+  const jsonStart = message.lastIndexOf(' {');
+
+  if (jsonStart === -1 || !message.endsWith('}')) {
+    return { message, meta: null, metaText: '' };
+  }
+
+  const jsonText = message.slice(jsonStart + 1);
+
+  try {
+    const meta = JSON.parse(jsonText);
+    return {
+      message: message.slice(0, jsonStart).trimEnd(),
+      meta,
+      metaText: JSON.stringify(meta, null, 2),
+    };
+  } catch (_) {
+    return { message, meta: null, metaText: '' };
+  }
+}
+
+function normalizeLogLevel(level, fallbackLine) {
+  const normalized = level.toLowerCase();
+  return LOG_LEVELS.has(normalized)
+    ? normalized
+    : classifyLogLine(fallbackLine);
+}
+
+function parseLogLine(line) {
+  const match = line.match(
+    /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[([^\]]+)\]: (.*)$/
+  );
+
+  if (!match) {
+    const level = classifyLogLine(line);
+    return {
+      raw: line,
+      timestamp: '',
+      level,
+      message: line,
+      meta: null,
+      metaText: '',
+      searchText: line.toLowerCase(),
+    };
+  }
+
+  const [, timestamp, rawLevel, rest] = match;
+  const { message, meta, metaText } = splitLogMetadata(rest);
+  const level = normalizeLogLevel(rawLevel, line);
+
+  return {
+    raw: line,
+    timestamp,
+    level,
+    message,
+    meta,
+    metaText,
+    searchText: `${timestamp} ${level} ${message} ${metaText}`.toLowerCase(),
+  };
+}
+
+function formatMetadataValue(value) {
+  if (value === null) {
+    return 'null';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  return JSON.stringify(value, null, 2);
+}
+
+function getMetadataSummary(meta) {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return 'Details';
+  }
+
+  const keys = Object.keys(meta);
+  if (keys.length === 0) {
+    return 'Details';
+  }
+
+  const visibleKeys = keys.slice(0, 3).join(', ');
+  const remaining = keys.length > 3 ? ` +${keys.length - 3}` : '';
+  return `Details: ${visibleKeys}${remaining}`;
+}
+
+function renderMetadata(meta, fallbackText) {
+  const details = createEl('details', { className: 'log-meta-details' });
+  details.appendChild(createEl('summary', { text: getMetadataSummary(meta) }));
+
+  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+    const list = createEl('dl', { className: 'log-meta-list' });
+    for (const [key, value] of Object.entries(meta)) {
+      list.appendChild(createEl('dt', { text: key }));
+      list.appendChild(createEl('dd', { text: formatMetadataValue(value) }));
+    }
+    details.appendChild(list);
+    return details;
+  }
+
+  details.appendChild(createEl('pre', { text: fallbackText }));
+  return details;
+}
+
+function renderLogEntry(entry) {
+  const row = createEl('div', {
+    className: `log-line is-${entry.level}`,
+  });
+
+  row.appendChild(
+    createEl('span', {
+      className: 'log-time',
+      text: entry.timestamp || 'raw',
+    })
+  );
+
+  const body = createEl('div', { className: 'log-body' });
+  const main = createEl('div', { className: 'log-entry-main' });
+  main.appendChild(
+    createEl('span', {
+      className: 'log-level',
+      text: entry.level,
+    })
+  );
+  main.appendChild(
+    createEl('span', {
+      className: 'log-message',
+      text: entry.message || entry.raw,
+    })
+  );
+  body.appendChild(main);
+
+  if (entry.metaText) {
+    body.appendChild(renderMetadata(entry.meta, entry.metaText));
+  }
+
+  row.appendChild(body);
+  return row;
+}
+
 function renderLogOutput() {
   const search = els.logSearch.value.trim().toLowerCase();
   const fragment = document.createDocumentFragment();
   const visibleLines = search
-    ? state.logLines.filter(entry => entry.text.toLowerCase().includes(search))
+    ? state.logLines.filter(entry => entry.searchText.includes(search))
     : state.logLines;
 
   if (visibleLines.length === 0) {
     fragment.appendChild(
       createEl('div', {
-        className: 'log-line',
+        className: 'log-line log-line-empty',
         text: search ? 'No matching log lines.' : 'No log lines loaded yet.',
       })
     );
   } else {
     for (const entry of visibleLines) {
-      const row = createEl('div', {
-        className: `log-line is-${entry.level}`,
-      });
-      row.appendChild(
-        createEl('span', {
-          className: 'log-level',
-          text: entry.level,
-        })
-      );
-      row.appendChild(createEl('span', { text: entry.text }));
-      fragment.appendChild(row);
+      fragment.appendChild(renderLogEntry(entry));
     }
   }
 
@@ -211,10 +348,7 @@ function renderLogOutput() {
 }
 
 function pushLogLine(text) {
-  state.logLines.push({
-    text,
-    level: classifyLogLine(text),
-  });
+  state.logLines.push(parseLogLine(text));
 
   if (state.logLines.length > MAX_LIVE_LINES) {
     state.logLines.splice(0, state.logLines.length - MAX_LIVE_LINES);
@@ -383,13 +517,10 @@ async function viewLogFile(name) {
     state.logLines = text
       .split(/\r?\n/)
       .filter(Boolean)
-      .map(line => ({
-        text: line,
-        level: classifyLogLine(line),
-      }));
+      .map(line => parseLogLine(line));
     renderLogOutput();
   } catch (error) {
-    state.logLines = [{ text: error.message, level: 'error' }];
+    state.logLines = [parseLogLine(error.message)];
     renderLogOutput();
   }
 }
