@@ -204,9 +204,6 @@ async function streamLogSSE(req, res) {
   const dir = getLogDir(type);
   await fs.ensureDir(dir);
   let currentName = (await getLatestLogFile(type)) || '';
-  if (!currentName) {
-    return res.status(404).send('No log file yet');
-  }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -221,7 +218,7 @@ async function streamLogSSE(req, res) {
   }
 
   function sseSend(line) {
-    res.write(`data: ${line.replace(/\n/g, '\\n')}\n\n`);
+    res.write(`data: ${line.replace(/\r/g, '\\r').replace(/\n/g, '\\n')}\n\n`);
   }
 
   // Helper to start tail on a file
@@ -237,13 +234,17 @@ async function streamLogSSE(req, res) {
       state: 'connected',
       type,
       file: filePath,
+      reset: true,
       time: new Date().toISOString(),
     });
-    // -n 300 to send last lines
-    tailProc = spawn('tail', ['-n', '300', '-F', full]);
+
+    // Stream the full current log file first, then continue following it.
+    tailProc = spawn('tail', ['-n', '+1', '-F', full]);
     tailProc.stdout.setEncoding('utf8');
+    let pendingLine = '';
     tailProc.stdout.on('data', chunk => {
-      const lines = chunk.split(/\r?\n/);
+      const lines = `${pendingLine}${chunk}`.split(/\r?\n/);
+      pendingLine = lines.pop() || '';
       for (const l of lines) {
         if (l.length) sseSend(l);
       }
@@ -262,7 +263,16 @@ async function streamLogSSE(req, res) {
     });
   }
 
-  startTail(currentName);
+  if (currentName) {
+    startTail(currentName);
+  } else {
+    sseEvent('status', {
+      state: 'waiting',
+      type,
+      message: 'No log file yet',
+      time: new Date().toISOString(),
+    });
+  }
 
   const heartbeat = setInterval(() => {
     sseEvent('heartbeat', { time: new Date().toISOString() });

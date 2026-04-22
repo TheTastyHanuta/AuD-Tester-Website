@@ -4,6 +4,22 @@ const state = {
   eventSource: null,
   logMode: 'live',
   logLines: [],
+  logHeights: [],
+  logHeightTree: null,
+  logTotalHeight: 0,
+  logVersion: 0,
+  logRenderPending: false,
+  logShouldStickToBottom: false,
+  logStickToBottomUntilStable: false,
+  liveInitialTailTimer: null,
+  expandedLogMeta: new Set(),
+  logSearchCache: {
+    query: '',
+    version: -1,
+    indexes: [],
+    tree: null,
+    totalHeight: 0,
+  },
   currentLiveName: '',
   currentArchiveName: '',
   exercises: [],
@@ -11,7 +27,9 @@ const state = {
   messageTimer: null,
 };
 
-const MAX_LIVE_LINES = 1500;
+const LOG_ROW_ESTIMATE = 48;
+const LOG_OVERSCAN = 18;
+const LOG_HEIGHT_TOLERANCE = 2;
 const LOG_LEVELS = new Set(['error', 'warn', 'info', 'debug', 'log']);
 
 const els = {
@@ -276,8 +294,22 @@ function getMetadataSummary(meta) {
   return `Details: ${visibleKeys}${remaining}`;
 }
 
-function renderMetadata(meta, fallbackText) {
+function renderMetadata(meta, fallbackText, sourceIndex) {
   const details = createEl('details', { className: 'log-meta-details' });
+  details.open = state.expandedLogMeta.has(sourceIndex);
+  details.addEventListener('toggle', () => {
+    const wasOpen = state.expandedLogMeta.has(sourceIndex);
+    if (details.open === wasOpen) {
+      return;
+    }
+
+    if (details.open) {
+      state.expandedLogMeta.add(sourceIndex);
+    } else {
+      state.expandedLogMeta.delete(sourceIndex);
+    }
+    scheduleLogRender();
+  });
   details.appendChild(createEl('summary', { text: getMetadataSummary(meta) }));
 
   if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
@@ -294,7 +326,7 @@ function renderMetadata(meta, fallbackText) {
   return details;
 }
 
-function renderLogEntry(entry) {
+function renderLogEntry(entry, sourceIndex) {
   const row = createEl('div', {
     className: `log-line is-${entry.level}`,
   });
@@ -323,21 +355,241 @@ function renderLogEntry(entry) {
   body.appendChild(main);
 
   if (entry.metaText) {
-    body.appendChild(renderMetadata(entry.meta, entry.metaText));
+    body.appendChild(renderMetadata(entry.meta, entry.metaText, sourceIndex));
   }
 
   row.appendChild(body);
   return row;
 }
 
+function buildFenwickFromHeights(indexes = null) {
+  const count = indexes ? indexes.length : state.logHeights.length;
+  const tree = new Array(count + 1).fill(0);
+  let totalHeight = 0;
+
+  for (let i = 0; i < count; i += 1) {
+    const sourceIndex = indexes ? indexes[i] : i;
+    const height = state.logHeights[sourceIndex] || LOG_ROW_ESTIMATE;
+    totalHeight += height;
+    const treeIndex = i + 1;
+    tree[treeIndex] += height;
+    const parent = treeIndex + (treeIndex & -treeIndex);
+    if (parent <= count) {
+      tree[parent] += tree[treeIndex];
+    }
+  }
+
+  return { tree, totalHeight };
+}
+
+function fenwickAdd(tree, index, delta) {
+  for (let i = index + 1; i < tree.length; i += i & -i) {
+    tree[i] += delta;
+  }
+}
+
+function fenwickSum(tree, count) {
+  let sum = 0;
+  for (let i = count; i > 0; i -= i & -i) {
+    sum += tree[i];
+  }
+  return sum;
+}
+
+function findVirtualIndexByOffset(tree, offset) {
+  if (!tree || tree.length <= 1) {
+    return 0;
+  }
+
+  let index = 0;
+  let bit = 1;
+  while (bit < tree.length) {
+    bit <<= 1;
+  }
+
+  for (let step = bit >> 1; step > 0; step >>= 1) {
+    const next = index + step;
+    if (next < tree.length && tree[next] <= offset) {
+      index = next;
+      offset -= tree[next];
+    }
+  }
+
+  return Math.min(index, tree.length - 2);
+}
+
+function ensureLogHeightTree() {
+  if (!state.logHeightTree) {
+    const { tree, totalHeight } = buildFenwickFromHeights();
+    state.logHeightTree = tree;
+    state.logTotalHeight = totalHeight;
+  }
+}
+
+function appendLogHeight(height) {
+  state.logHeights.push(height);
+
+  if (state.logHeightTree) {
+    const treeIndex = state.logHeights.length;
+    const coveredCount = treeIndex & -treeIndex;
+    const previousHeight =
+      coveredCount > 1
+        ? fenwickSum(state.logHeightTree, treeIndex - 1) -
+          fenwickSum(state.logHeightTree, treeIndex - coveredCount)
+        : 0;
+    state.logHeightTree.push(previousHeight + height);
+  }
+
+  state.logTotalHeight += height;
+}
+
+function clearLogSearchCache() {
+  state.logSearchCache = {
+    query: '',
+    version: -1,
+    indexes: [],
+    tree: null,
+    totalHeight: 0,
+  };
+}
+
+function ensureLogSearchCache(query) {
+  if (
+    state.logSearchCache.query === query &&
+    state.logSearchCache.version === state.logVersion
+  ) {
+    return state.logSearchCache;
+  }
+
+  const indexes = [];
+  for (let i = 0; i < state.logLines.length; i += 1) {
+    if (state.logLines[i].searchText.includes(query)) {
+      indexes.push(i);
+    }
+  }
+
+  const { tree, totalHeight } = buildFenwickFromHeights(indexes);
+  state.logSearchCache = {
+    query,
+    version: state.logVersion,
+    indexes,
+    tree,
+    totalHeight,
+  };
+  return state.logSearchCache;
+}
+
+function getVisibleLogModel(search) {
+  if (search) {
+    const cache = ensureLogSearchCache(search);
+    return {
+      count: cache.indexes.length,
+      tree: cache.tree,
+      totalHeight: cache.totalHeight,
+      sourceIndexAt: virtualIndex => cache.indexes[virtualIndex],
+      cache,
+    };
+  }
+
+  ensureLogHeightTree();
+  return {
+    count: state.logLines.length,
+    tree: state.logHeightTree,
+    totalHeight: state.logTotalHeight,
+    sourceIndexAt: virtualIndex => virtualIndex,
+    cache: null,
+  };
+}
+
+function makeLogSpacer(height) {
+  const spacer = createEl('div', { className: 'log-virtual-spacer' });
+  spacer.style.height = `${Math.max(0, Math.round(height))}px`;
+  return spacer;
+}
+
+function updateMeasuredLogHeights(model) {
+  const rows = els.logOutput.querySelectorAll('[data-log-index]');
+  let changed = false;
+
+  for (const row of rows) {
+    const sourceIndex = Number(row.dataset.logIndex);
+    const virtualIndex = Number(row.dataset.virtualIndex);
+    const measuredHeight = row.offsetHeight;
+    const previousHeight = state.logHeights[sourceIndex] || LOG_ROW_ESTIMATE;
+    const delta = measuredHeight - previousHeight;
+
+    if (Math.abs(delta) <= LOG_HEIGHT_TOLERANCE) {
+      continue;
+    }
+
+    state.logHeights[sourceIndex] = measuredHeight;
+    ensureLogHeightTree();
+    fenwickAdd(state.logHeightTree, sourceIndex, delta);
+    state.logTotalHeight += delta;
+
+    if (model.cache && model.cache.tree) {
+      fenwickAdd(model.cache.tree, virtualIndex, delta);
+      model.cache.totalHeight += delta;
+    }
+
+    changed = true;
+  }
+
+  return changed;
+}
+
+function scheduleLogRender({ stickToBottom = false } = {}) {
+  state.logShouldStickToBottom = state.logShouldStickToBottom || stickToBottom;
+
+  if (state.logRenderPending) {
+    return;
+  }
+
+  state.logRenderPending = true;
+  window.requestAnimationFrame(() => {
+    state.logRenderPending = false;
+    renderLogOutput();
+  });
+}
+
+function getLogScrollAnchor() {
+  const row = els.logOutput.querySelector('[data-log-index]');
+  if (!row) {
+    return null;
+  }
+
+  return {
+    sourceIndex: row.dataset.logIndex,
+    offset: row.offsetTop - els.logOutput.scrollTop,
+  };
+}
+
+function restoreLogScrollAnchor(anchor) {
+  if (
+    !anchor ||
+    state.logShouldStickToBottom ||
+    state.logStickToBottomUntilStable
+  ) {
+    return;
+  }
+
+  const row = els.logOutput.querySelector(
+    `[data-log-index="${anchor.sourceIndex}"]`
+  );
+  if (row) {
+    els.logOutput.scrollTop = Math.max(0, row.offsetTop - anchor.offset);
+  }
+}
+
 function renderLogOutput() {
   const search = els.logSearch.value.trim().toLowerCase();
   const fragment = document.createDocumentFragment();
-  const visibleLines = search
-    ? state.logLines.filter(entry => entry.searchText.includes(search))
-    : state.logLines;
+  const model = getVisibleLogModel(search);
+  const anchor = getLogScrollAnchor();
+  const shouldStickToBottom =
+    state.logShouldStickToBottom || state.logStickToBottomUntilStable;
 
-  if (visibleLines.length === 0) {
+  if (model.count === 0) {
     fragment.appendChild(
       createEl('div', {
         className: 'log-line log-line-empty',
@@ -345,31 +597,103 @@ function renderLogOutput() {
       })
     );
   } else {
-    for (const entry of visibleLines) {
-      fragment.appendChild(renderLogEntry(entry));
+    const viewportHeight = els.logOutput.clientHeight || 520;
+    const scrollTop = els.logOutput.scrollTop;
+    const start = Math.max(
+      0,
+      findVirtualIndexByOffset(model.tree, scrollTop) - LOG_OVERSCAN
+    );
+    const end = Math.min(
+      model.count,
+      findVirtualIndexByOffset(model.tree, scrollTop + viewportHeight) +
+        LOG_OVERSCAN +
+        1
+    );
+    const topHeight = fenwickSum(model.tree, start);
+    const renderedHeight = fenwickSum(model.tree, end) - topHeight;
+
+    fragment.appendChild(makeLogSpacer(topHeight));
+    for (let virtualIndex = start; virtualIndex < end; virtualIndex += 1) {
+      const sourceIndex = model.sourceIndexAt(virtualIndex);
+      const row = renderLogEntry(state.logLines[sourceIndex], sourceIndex);
+      row.dataset.logIndex = String(sourceIndex);
+      row.dataset.virtualIndex = String(virtualIndex);
+      fragment.appendChild(row);
     }
+    fragment.appendChild(
+      makeLogSpacer(model.totalHeight - topHeight - renderedHeight)
+    );
   }
 
   els.logOutput.replaceChildren(fragment);
 
-  if (els.autoscroll.checked) {
+  if (shouldStickToBottom) {
     els.logOutput.scrollTop = els.logOutput.scrollHeight;
+    state.logShouldStickToBottom = false;
+  } else {
+    restoreLogScrollAnchor(anchor);
+  }
+
+  const heightsChanged = model.count > 0 && updateMeasuredLogHeights(model);
+
+  if (heightsChanged) {
+    if (state.logStickToBottomUntilStable) {
+      scheduleLogRender({ stickToBottom: true });
+    } else {
+      scheduleLogRender();
+    }
+    return;
+  }
+
+  if (state.logStickToBottomUntilStable) {
+    state.logStickToBottomUntilStable = false;
+    scheduleLogRender();
+    return;
+  }
+
+  if (shouldStickToBottom) {
+    scheduleLogRender();
   }
 }
 
 function pushLogLine(text) {
   state.logLines.push(parseLogLine(text));
-
-  if (state.logLines.length > MAX_LIVE_LINES) {
-    state.logLines.splice(0, state.logLines.length - MAX_LIVE_LINES);
-  }
-
-  renderLogOutput();
+  appendLogHeight(LOG_ROW_ESTIMATE);
+  state.logVersion += 1;
+  clearLogSearchCache();
+  scheduleLogRender({
+    stickToBottom: els.autoscroll.checked || state.logStickToBottomUntilStable,
+  });
 }
 
-function resetLogLines() {
+function setLogLines(entries, { stickToBottom = false } = {}) {
+  state.logLines = entries;
+  state.logHeights = new Array(entries.length).fill(LOG_ROW_ESTIMATE);
+  state.logHeightTree = null;
+  state.logTotalHeight = entries.length * LOG_ROW_ESTIMATE;
+  state.logVersion += 1;
+  state.logShouldStickToBottom = stickToBottom;
+  state.logStickToBottomUntilStable = stickToBottom;
+  state.expandedLogMeta.clear();
+  clearLogSearchCache();
+  scheduleLogRender({ stickToBottom });
+}
+
+function resetLogLines({ render = true } = {}) {
   state.logLines = [];
-  renderLogOutput();
+  state.logHeights = [];
+  state.logHeightTree = null;
+  state.logTotalHeight = 0;
+  state.logVersion += 1;
+  state.logShouldStickToBottom = false;
+  state.logStickToBottomUntilStable = false;
+  clearTimeout(state.liveInitialTailTimer);
+  state.liveInitialTailTimer = null;
+  state.expandedLogMeta.clear();
+  clearLogSearchCache();
+  if (render) {
+    scheduleLogRender();
+  }
 }
 
 function closeEventSource() {
@@ -377,6 +701,28 @@ function closeEventSource() {
     state.eventSource.close();
     state.eventSource = null;
   }
+  clearTimeout(state.liveInitialTailTimer);
+  state.liveInitialTailTimer = null;
+}
+
+function extendLiveInitialTail() {
+  if (
+    state.logMode !== 'live' ||
+    !state.currentLiveName ||
+    !els.autoscroll.checked
+  ) {
+    return;
+  }
+
+  state.logStickToBottomUntilStable = true;
+  clearTimeout(state.liveInitialTailTimer);
+  state.liveInitialTailTimer = setTimeout(() => {
+    state.liveInitialTailTimer = null;
+    state.logStickToBottomUntilStable = false;
+    if (els.autoscroll.checked) {
+      scheduleLogRender({ stickToBottom: true });
+    }
+  }, 350);
 }
 
 function startLiveLogs() {
@@ -397,23 +743,42 @@ function startLiveLogs() {
   state.eventSource = source;
 
   source.onmessage = event => {
+    extendLiveInitialTail();
     pushLogLine(event.data);
   };
 
   source.addEventListener('status', event => {
     const payload = JSON.parse(event.data);
-    const label = payload.state === 'connected' ? 'Connected' : payload.state;
+    const label =
+      payload.state === 'connected'
+        ? 'Connected'
+        : payload.state === 'waiting'
+          ? 'Waiting'
+          : payload.state;
     setStreamStatus(label, payload.state || 'connected');
+    if (payload.reset) {
+      resetLogLines({ render: false });
+    }
     if (payload.file) {
       state.currentLiveName = payload.file;
       els.currentFile.textContent = `Live tail: ${payload.file}`;
       els.downloadLogBtn.disabled = false;
+      if (els.autoscroll.checked) {
+        extendLiveInitialTail();
+      }
+    } else if (payload.message) {
+      els.currentFile.textContent = payload.message;
     }
+    scheduleLogRender({ stickToBottom: els.autoscroll.checked });
   });
 
   source.addEventListener('heartbeat', () => {
     if (state.logMode === 'live') {
-      setStreamStatus('Connected', 'connected');
+      if (state.currentLiveName) {
+        setStreamStatus('Connected', 'connected');
+      } else {
+        setStreamStatus('Waiting', 'waiting');
+      }
     }
   });
 
@@ -524,14 +889,15 @@ async function viewLogFile(name) {
       throw new Error(text || `Failed to load ${name}`);
     }
 
-    state.logLines = text
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .map(line => parseLogLine(line));
-    renderLogOutput();
+    setLogLines(
+      text
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map(line => parseLogLine(line)),
+      { stickToBottom: true }
+    );
   } catch (error) {
-    state.logLines = [parseLogLine(error.message)];
-    renderLogOutput();
+    setLogLines([parseLogLine(error.message)]);
   }
 }
 
@@ -745,7 +1111,12 @@ function bindEvents() {
   });
   els.refreshLogsBtn.addEventListener('click', loadLogFiles);
   els.backToLiveBtn.addEventListener('click', startLiveLogs);
-  els.logSearch.addEventListener('input', renderLogOutput);
+  els.logSearch.addEventListener('input', () => {
+    clearLogSearchCache();
+    els.logOutput.scrollTop = 0;
+    scheduleLogRender();
+  });
+  els.logOutput.addEventListener('scroll', () => scheduleLogRender());
   els.downloadLogBtn.addEventListener('click', () => {
     const name =
       state.logMode === 'archive'
