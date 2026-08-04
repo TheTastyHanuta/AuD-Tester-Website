@@ -232,31 +232,3 @@ Example exercise configuration:
 5. **JUnit Testing**: If tests are defined for the exercise, the system runs JUnit tests and captures the results via a Docker container
 6. **Result Generation**: Compilation and test results are returned with detailed feedback
 7. **Cleanup**: Temporary files are automatically cleaned up after processing
-
-## Contributing
-
-### Adding New Features
-
-Contributions are welcome! Please follow these guidelines:
-
-1. **Code Style**: Maintain consistent formatting and naming conventions (see [Code Formatting](#code-formatting))
-2. **Testing**: Test your changes with multiple file types and scenarios
-3. **Documentation**: Update relevant documentation for new features
-
-#### Submitting Changes
-
-1. Create a descriptive commit message
-2. Test your changes thoroughly
-3. Update documentation if needed
-4. Submit a pull request with a clear description of changes
-
-### Reporting Issues
-
-When reporting issues, please include:
-
-- Operating system and version
-- Node.js version
-- Java version
-- Steps to reproduce the issue
-- Expected vs actual behavior
-- Any error messages or console output
