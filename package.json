@@ -37,5 +37,8 @@
     "data-structures"
   ],
   "author": "AuD Course Team",
-  "license": "MIT"
+  "license": "MIT",
+  "allowScripts": {
+    "better-sqlite3": true
+  }
 }
