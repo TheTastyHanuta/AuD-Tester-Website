@@ -88,7 +88,7 @@ function configureHelmet(app) {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", 'https://www.googletagmanager.com'],
+          scriptSrc: ["'self'"],
           styleSrc: [
             "'self'",
             "'unsafe-inline'",
@@ -101,8 +101,6 @@ function configureHelmet(app) {
                 "'self'",
                 'https://aud-mt.de',
                 'wss:',
-                'https://region1.google-analytics.com',
-                'https://www.google-analytics.com',
               ]
             : [
                 "'self'",
@@ -110,8 +108,6 @@ function configureHelmet(app) {
                 'http://localhost:3000',
                 'ws:',
                 'wss:',
-                'https://region1.google-analytics.com',
-                'https://www.google-analytics.com',
               ],
           objectSrc: ["'none'"],
           frameAncestors: ["'self'"],
